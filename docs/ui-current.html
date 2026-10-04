@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1600, initial-scale=1">
+<title>四象限待办 · macOS UI</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { width: 1600px; height: 1000px; margin: 0; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    color: #172033;
+    background:
+      radial-gradient(circle at 15% 5%, rgba(123, 167, 255, .28), transparent 34%),
+      radial-gradient(circle at 90% 5%, rgba(241, 170, 221, .22), transparent 32%),
+      linear-gradient(160deg, #edf3fb 0%, #f7f5fa 52%, #edf8f4 100%);
+  }
+
+  .page-head {
+    height: 126px; padding: 34px 54px 20px;
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  h1 { margin: 0; font-size: 30px; line-height: 1.2; letter-spacing: -.6px; }
+  .subtitle { margin-top: 10px; color: #747d90; font-size: 14px; }
+  .badge {
+    margin-top: 7px; padding: 8px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.72); border: 1px solid rgba(122,132,157,.18);
+    color: #667085; font-size: 12px; box-shadow: 0 8px 22px rgba(51,65,92,.07);
+  }
+
+  .desktop {
+    position: relative; width: 1492px; height: 812px; margin: 0 auto;
+    border-radius: 26px; overflow: hidden;
+    background:
+      radial-gradient(circle at 18% 20%, rgba(102, 150, 255, .20), transparent 38%),
+      radial-gradient(circle at 85% 20%, rgba(255, 166, 215, .18), transparent 36%),
+      radial-gradient(circle at 58% 100%, rgba(93, 211, 169, .17), transparent 38%),
+      linear-gradient(145deg, #dae7f8 0%, #eef0fa 53%, #f8ecf4 100%);
+    border: 1px solid rgba(111,126,156,.18);
+    box-shadow: 0 34px 90px -35px rgba(27,39,68,.38);
+  }
+  .menu {
+    height: 34px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,.62); border-bottom: 1px solid rgba(90,100,122,.08);
+    backdrop-filter: blur(24px); color: #3d4658; font-size: 13px;
+  }
+  .menu-left, .menu-right { display: flex; align-items: center; gap: 20px; }
+  .apple { font-size: 16px; font-weight: 700; }
+
+  .background-window {
+    position: absolute; left: 165px; top: 138px; width: 690px; height: 430px;
+    border-radius: 20px; background: rgba(255,255,255,.24);
+    border: 1px solid rgba(255,255,255,.58); box-shadow: 0 20px 50px -34px rgba(30,42,70,.45);
+  }
+  .background-window:before {
+    content: ""; display: block; height: 39px; border-bottom: 1px solid rgba(72,84,110,.06);
+  }
+  .background-window:after {
+    content: ""; position: absolute; left: 38px; top: 76px; width: 390px; height: 13px;
+    border-radius: 8px; background: rgba(255,255,255,.36);
+    box-shadow: 0 31px 0 rgba(255,255,255,.25), 0 62px 0 rgba(255,255,255,.21), 0 93px 0 rgba(255,255,255,.18);
+  }
+
+  .state-label {
+    position: absolute; z-index: 8; padding: 7px 12px; border-radius: 999px;
+    background: rgba(255,255,255,.80); border: 1px solid rgba(109,120,144,.14);
+    box-shadow: 0 8px 24px rgba(35,46,73,.10); font-size: 12px; color: #596274;
+    backdrop-filter: blur(18px);
+  }
+  .state-label.collapsed { left: 87px; top: 346px; }
+  .state-label.expanded { right: 458px; top: 56px; }
+
+  .rail {
+    position: absolute; left: 0; top: 50%; transform: translateY(-45%); z-index: 10;
+    width: 72px; padding: 14px 0 12px; border-radius: 0 22px 22px 0;
+    background: rgba(251,252,255,.76); border: 1px solid rgba(255,255,255,.92); border-left: 0;
+    backdrop-filter: blur(30px) saturate(170%); box-shadow: 14px 18px 40px -16px rgba(35,48,80,.38);
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .app-icon {
+    width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center;
+    color: white; font-size: 17px; font-weight: 800;
+    background: linear-gradient(145deg, #62a1ff, #3174e8); box-shadow: 0 6px 15px rgba(49,116,232,.32);
+  }
+  .rail-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .rail-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .rail-num { font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; }
+  .rail-line { width: 32px; height: 1px; background: rgba(58,67,88,.11); }
+  .rail-total { font-size: 22px; line-height: 1; font-weight: 800; }
+  .rail-small { margin-top: -7px; font-size: 9px; color: #8a92a3; }
+
+  .panel {
+    position: absolute; right: 26px; top: 55px; z-index: 10; width: 420px;
+    padding: 16px; border-radius: 24px;
+    background: rgba(252,252,255,.78); border: 1px solid rgba(255,255,255,.94);
+    backdrop-filter: blur(38px) saturate(165%);
+    box-shadow: 0 38px 80px -24px rgba(25,36,68,.44), inset 0 1px 0 rgba(255,255,255,.92);
+  }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 3px 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand h2 { margin: 0; font-size: 18px; letter-spacing: -.2px; }
+  .panel-meta { display: flex; align-items: center; gap: 9px; color: #6e7789; font-size: 12px; }
+  .panel-meta b { color: #20283a; font-size: 15px; }
+  .collapse-btn { padding: 6px 10px; border-radius: 999px; background: rgba(84,94,118,.08); color: #4e5769; }
+
+  .quadrant {
+    margin-bottom: 9px; padding: 11px 12px 8px; border-radius: 15px;
+    background: rgba(255,255,255,.62); border: 1px solid rgba(77,88,112,.08);
+    box-shadow: 0 3px 10px rgba(42,54,84,.025);
+  }
+  .q-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .q-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .q-name { font-size: 13px; font-weight: 700; }
+  .q-count { margin-left: auto; padding: 3px 8px; border-radius: 999px; background: rgba(79,89,111,.07); color: #8790a1; font-size: 11px; }
+  .q-count b { color: #343d50; }
+  .task { min-height: 34px; display: flex; align-items: center; gap: 9px; padding: 7px 3px; }
+  .task + .task { border-top: 1px solid rgba(68,78,99,.055); }
+  .check { width: 17px; height: 17px; border-radius: 50%; border: 1.7px solid currentColor; flex: none; }
+  .task-name { font-size: 13px; color: #30394c; }
+  .more { margin-left: auto; color: #b0b6c2; letter-spacing: 1.3px; }
+  .done { padding: 6px 3px 2px; color: #969dac; font-size: 11.5px; }
+
+  .panel-footer { display: flex; gap: 9px; margin-top: 11px; }
+  .add {
+    height: 42px; flex: 1; border-radius: 12px; display: grid; place-items: center;
+    color: white; font-weight: 700; font-size: 13px;
+    background: linear-gradient(180deg, #5795ff, #3477ea); box-shadow: 0 8px 20px -8px rgba(52,119,234,.62);
+  }
+  .shrink {
+    height: 42px; padding: 0 18px; border-radius: 12px; display: grid; place-items: center;
+    background: rgba(78,88,110,.08); color: #586174; font-size: 13px;
+  }
+
+  .red { color: #ff453a; background-color: #ff453a; }
+  .blue { color: #0a84ff; background-color: #0a84ff; }
+  .amber { color: #ff9f0a; background-color: #ff9f0a; }
+  .gray { color: #8e8e93; background-color: #8e8e93; }
+  .check.red, .check.blue, .check.amber, .check.gray { background: transparent; }
+
+  .legend {
+    position: absolute; left: 260px; bottom: 34px; z-index: 5;
+    display: flex; gap: 24px; padding: 10px 15px; border-radius: 14px;
+    background: rgba(255,255,255,.48); border: 1px solid rgba(255,255,255,.65); backdrop-filter: blur(18px);
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; color: #596274; font-size: 11px; }
+  .legend-item i { width: 9px; height: 9px; border-radius: 3px; }
+  .detail-preview { position: absolute; right: 45px; top: 70px; width: 380px; padding: 18px; border-radius: 14px; background: rgba(251,252,255,.94); border: 1px solid #dbe1ed; box-shadow: 0 24px 50px #26334b25; font-size: 12px; }
+  .detail-preview { left: 580px; right: auto; z-index: 11; }
+  .detail-preview header, .detail-preview .line { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .detail-preview h3 { margin:0; font-size:14px; }
+  .detail-preview small { color:#7b8494; }
+  .detail-preview .field, .detail-preview .entry { border:1px solid #dfe5ee; border-radius:8px; padding:10px; margin:6px 0 12px; background:#fff9; }
+  .detail-preview .thumb { width:64px; height:64px; border-radius:8px; background:linear-gradient(150deg,#a9d9ee,#dad1f3 50%,#92bbac); display:grid; place-items:center; color:#fff; margin-top:8px; }
+  .detail-preview .record { background:#5865db; color:white; padding:7px 12px; border-radius:8px; }
+</style>
+</head>
+<body>
+  <header class="page-head">
+    <div>
+      <h1>四象限待办 · macOS 悬浮面板</h1>
+      <div class="subtitle">展开态与贴边收起态｜未完成任务优先｜浅色系统外观</div>
+    </div>
+    <div class="badge">UI 概念稿 · 当前模型直接制作</div>
+  </header>
+
+  <main class="desktop">
+    <div class="menu">
+      <div class="menu-left"><span class="apple">●</span><span>访达</span><span>文件</span><span>编辑</span><span>显示</span><span>窗口</span><span>帮助</span></div>
+      <div class="menu-right"><span>Wi-Fi</span><span>100%</span><span>10月4日 周日 10:24</span></div>
+    </div>
+
+    <div class="background-window"></div>
+    <div class="state-label collapsed">收起态 · 贴边胶囊</div>
+    <div class="state-label expanded">展开态 · 420pt 浮动面板</div>
+
+    <aside class="rail">
+      <div class="app-icon">✓</div>
+      <div class="rail-item"><i class="rail-dot red"></i><span class="rail-num">3</span></div>
+      <div class="rail-item"><i class="rail-dot blue"></i><span class="rail-num">2</span></div>
+      <div class="rail-item"><i class="rail-dot amber"></i><span class="rail-num">2</span></div>
+      <div class="rail-item"><i class="rail-dot gray"></i><span class="rail-num">1</span></div>
+      <div class="rail-line"></div>
+      <div class="rail-total">8</div>
+      <div class="rail-small">未完成</div>
+    </aside>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="brand"><div class="app-icon">✓</div><h2>待办事项</h2></div>
+        <div class="panel-meta"><span>未完成 <b>8</b></span><span class="collapse-btn">收起</span></div>
+      </div>
+
+      <div class="quadrant">
+        <div class="q-head"><i class="q-dot red"></i><span class="q-name">重要且紧急</span><span class="q-count"><b>3</b> / 5</span></div>
+        <div class="task"><i class="check red"></i><span class="task-name">修复发布阻塞问题</span><span class="more">•••</span></div>
+        <div class="task"><i class="check red"></i><span class="task-name">回复客户邮件</span><span class="more">•••</span></div>
+        <div class="task"><i class="check red"></i><span class="task-name">确认今日发布窗口</span><span class="more">•••</span></div>
+        <div class="done">› 已完成 2</div>
+      </div>
+
+      <div class="quadrant">
+        <div class="q-head"><i class="q-dot blue"></i><span class="q-name">重要但不紧急</span><span class="q-count"><b>2</b> / 4</span></div>
+        <div class="task"><i class="check blue"></i><span class="task-name">制定下季度目标</span><span class="more">•••</span></div>
+        <div class="task"><i class="check blue"></i><span class="task-name">学习 SwiftUI 动画</span><span class="more">•••</span></div>
+        <div class="done">› 已完成 2</div>
+      </div>
+
+      <div class="quadrant">
+        <div class="q-head"><i class="q-dot amber"></i><span class="q-name">不重要但紧急</span><span class="q-count"><b>2</b> / 3</span></div>
+        <div class="task"><i class="check amber"></i><span class="task-name">预订会议室</span><span class="more">•••</span></div>
+        <div class="task"><i class="check amber"></i><span class="task-name">回复合作方确认邮件</span><span class="more">•••</span></div>
+        <div class="done">› 已完成 1</div>
+      </div>
+
+      <div class="quadrant">
+        <div class="q-head"><i class="q-dot gray"></i><span class="q-name">不重要且不紧急</span><span class="q-count"><b>1</b> / 2</span></div>
+        <div class="task"><i class="check gray"></i><span class="task-name">整理桌面文件</span><span class="more">•••</span></div>
+        <div class="done">› 已完成 1</div>
+      </div>
+
+      <div class="panel-footer"><div class="add">＋ 新建任务</div><div class="shrink">收起</div></div>
+    </section>
+
+    <section class="detail-preview" aria-label="任务详情（含进度记录）">
+      <header><h3>任务详情（含进度记录）</h3><span>✕</span></header>
+      <small>任务名称</small><div class="field">修复发布阻塞问题</div>
+      <small>备注（可选）</small><div class="field">上线前确认回归结果</div>
+      <small>所属象限</small><div class="field">🔴 重要且紧急　　🔵 重要但不紧急<br><br>🟠 不重要但紧急　⚪ 不重要且不紧急</div>
+      <div class="line"><span></span><span class="record">保存更改</span></div>
+      <div class="line"><h3>进度记录</h3><small>共 2 条</small></div>
+      <div class="field" style="height:68px;color:#929aaa">记录一条进度…</div>
+      <div class="line"><span style="color:#5865db">＋ 添加图片</span><span class="record">记录进度</span></div>
+      <div class="entry"><div class="line"><small>2026-10-04 14:30</small><small>✕</small></div>回归测试通过，已附上修复后的界面。<div class="thumb">▧</div></div>
+      <div class="entry"><div class="line"><small>2026-10-04 13:10</small><small>✕</small></div>定位到触发条件，正在验证修复方案。</div>
+    </section>
+    <div class="legend">
+      <span class="legend-item"><i class="red"></i>重要且紧急</span>
+      <span class="legend-item"><i class="blue"></i>重要但不紧急</span>
+      <span class="legend-item"><i class="amber"></i>不重要但紧急</span>
+      <span class="legend-item"><i class="gray"></i>不重要且不紧急</span>
+    </div>
+  </main>
+</body>
+</html>

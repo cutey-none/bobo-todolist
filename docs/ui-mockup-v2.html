@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>贴边悬浮四象限待办 - UI 视觉稿</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1440px; height: 1040px;
+    background: #F4F5F8;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Heiti SC", -apple-system,
+                 "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #1C1C1E;
+  }
+  body { padding: 34px 40px 30px; display: flex; flex-direction: column; }
+
+  /* ---------- 标题 ---------- */
+  .caption { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 18px; }
+  .caption h1 { font-size: 25px; font-weight: 700; letter-spacing: .2px; }
+  .caption .sub { font-size: 12.5px; color: #8A8A8E; margin-top: 7px; letter-spacing: .2px; }
+  .caption .tag {
+    font-size: 12px; color: #5A5A5F; background: #FFFFFF; border: 1px solid #E4E4EA;
+    padding: 7px 13px; border-radius: 999px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+
+  /* ---------- 屏幕 ---------- */
+  .screen {
+    position: relative; width: 1360px; height: 780px; border-radius: 18px;
+    overflow: hidden; border: 1px solid #DFE1E8;
+    box-shadow: 0 24px 60px -18px rgba(28,33,60,.28), 0 3px 10px rgba(28,33,60,.06);
+    background:
+      radial-gradient(120% 90% at 10% 6%, #E7F0FF 0%, rgba(231,240,255,0) 58%),
+      radial-gradient(95% 85% at 90% 10%, #FBE9F5 0%, rgba(251,233,245,0) 55%),
+      radial-gradient(85% 95% at 72% 100%, #E3F4EF 0%, rgba(227,244,239,0) 62%),
+      linear-gradient(158deg, #DCE7F8 0%, #EAF0FA 46%, #F5EEF8 100%);
+  }
+
+  /* 菜单栏 */
+  .menubar {
+    height: 30px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; font-size: 12.5px; color: #3C3C43;
+    background: rgba(255,255,255,.62);
+    backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0,0,0,.05); position: relative; z-index: 5;
+  }
+  .menubar .left { display: flex; align-items: center; gap: 18px; }
+  .menubar .left .apple { font-size: 13px; opacity: .8; }
+  .menubar .right { display: flex; align-items: center; gap: 14px; color: #3C3C43; }
+
+  /* 桌面上的其他窗口暗示 */
+  .ghost { position: absolute; border-radius: 14px; background: rgba(255,255,255,.34);
+           border: 1px solid rgba(255,255,255,.55); box-shadow: 0 18px 40px -20px rgba(30,35,60,.25); }
+  .ghost.a { width: 560px; height: 330px; left: 96px; top: 120px; }
+  .ghost.b { width: 430px; height: 250px; left: 210px; top: 330px; background: rgba(255,255,255,.22); }
+  .ghost .bar { height: 26px; border-bottom: 1px solid rgba(0,0,0,.045); }
+
+  /* 吸附提示线 */
+  .snap-line { position: absolute; right: 0; top: 120px; bottom: 120px; width: 3px;
+               background: linear-gradient(180deg, rgba(0,122,255,0), rgba(0,122,255,.55), rgba(0,122,255,0));
+               border-radius: 3px; z-index: 9; }
+
+  /* Dock */
+  .dock {
+    position: absolute; left: 46%; bottom: 12px; transform: translateX(-50%);
+    display: flex; gap: 7px; padding: 6px 8px; border-radius: 14px;
+    background: rgba(255,255,255,.34); border: 1px solid rgba(255,255,255,.55);
+    box-shadow: 0 12px 26px -16px rgba(28,33,60,.30); opacity: .78;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); z-index: 4;
+  }
+  .dock i { width: 27px; height: 27px; border-radius: 8px; display: block; }
+  .dock i:nth-child(1) { background: linear-gradient(160deg,#5FB0FF,#2C6DE0); }
+  .dock i:nth-child(2) { background: linear-gradient(160deg,#8ED2A9,#3FA46F); }
+  .dock i:nth-child(3) { background: linear-gradient(160deg,#FFD08A,#F09000); }
+  .dock i:nth-child(4) { background: linear-gradient(160deg,#FF9E9E,#E24B4B); }
+  .dock i:nth-child(5) { background: linear-gradient(160deg,#C7A9FF,#7B57D8); }
+  .dock i:nth-child(6) { background: linear-gradient(160deg,#9FD9E8,#3B93AE); }
+  .dock i:nth-child(7) { background: linear-gradient(160deg,#D9DEE6,#98A2B3); }
+
+  /* ---------- 收起态：贴边胶囊 ---------- */
+  .capsule {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 66px; padding: 12px 0 10px; border-radius: 0 18px 18px 0;
+    background: rgba(255,255,255,.72);
+    backdrop-filter: saturate(180%) blur(28px); -webkit-backdrop-filter: saturate(180%) blur(28px);
+    border: 1px solid rgba(255,255,255,.85); border-left: none;
+    box-shadow: 10px 12px 30px -10px rgba(28,33,60,.30), 1px 0 0 rgba(0,0,0,.04) inset;
+    display: flex; flex-direction: column; align-items: center; gap: 9px; z-index: 6;
+  }
+  .capsule .logo {
+    width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #4C8DFF, #2F6BE0); color: #fff; font-size: 13px; font-weight: 700;
+    box-shadow: 0 3px 8px rgba(47,107,224,.35);
+  }
+  .capsule .divideline { width: 30px; height: 1px; background: rgba(0,0,0,.09); }
+  .capsule .qrow { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .capsule .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .capsule .num { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
+  .capsule .total { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .capsule .total .big { font-size: 21px; font-weight: 800; letter-spacing: -.6px; color: #1C1C1E; font-variant-numeric: tabular-nums; }
+  .capsule .total .lbl { font-size: 9.5px; color: #8A8A8E; letter-spacing: .3px; }
+
+  .c-red { background: #FF3B30; } .c-blue { background: #007AFF; }
+  .c-amber { background: #FF9F0A; } .c-gray { background: #8E8E93; }
+
+  /* ---------- 展开态：浮动面板 ---------- */
+  .panel {
+    position: absolute; right: 12px; top: 54px; width: 400px; border-radius: 20px;
+    background: rgba(255,255,255,.76);
+    backdrop-filter: saturate(180%) blur(34px); -webkit-backdrop-filter: saturate(180%) blur(34px);
+    border: 1px solid rgba(255,255,255,.9);
+    box-shadow: 0 30px 65px -16px rgba(24,30,58,.34), 0 2px 6px rgba(24,30,58,.06);
+    padding: 14px 14px 14px; z-index: 7;
+  }
+
+  .p-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 12px; }
+  .p-head .title { display: flex; align-items: center; gap: 9px; }
+  .p-head .mark {
+    width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(145deg,#4C8DFF,#2F6BE0);
+    color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 8px rgba(47,107,224,.32);
+  }
+  .p-head h2 { font-size: 16.5px; font-weight: 700; letter-spacing: .2px; }
+  .p-head .right { display: flex; align-items: center; gap: 10px; }
+  .p-head .count { font-size: 12px; color: #6B6B70; }
+  .p-head .count b { font-size: 14px; color: #1C1C1E; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .p-head .collapse {
+    font-size: 11.5px; color: #3C3C43; background: rgba(120,120,128,.10);
+    border: 1px solid rgba(0,0,0,.045); padding: 5px 11px; border-radius: 999px;
+  }
+
+  .sec {
+    border-radius: 14px; background: rgba(255,255,255,.60);
+    border: 1px solid rgba(0,0,0,.055); padding: 10px 12px 9px; margin-bottom: 9px;
+    box-shadow: 0 1px 2px rgba(20,25,50,.03);
+  }
+  .sec:last-of-type { margin-bottom: 11px; }
+  .sec.done { background: rgba(255,255,255,.44); }
+  .sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .sec-head .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .sec-head .name { font-size: 13px; font-weight: 600; letter-spacing: .15px; }
+  .sec-head .ratio {
+    margin-left: auto; font-size: 11.5px; color: #8A8A8E; font-variant-numeric: tabular-nums;
+    background: rgba(120,120,128,.09); padding: 2px 8px; border-radius: 999px;
+  }
+  .sec-head .ratio b { color: #1C1C1E; font-weight: 700; }
+
+  .task { display: flex; align-items: center; gap: 9px; padding: 6px 4px; border-radius: 8px; }
+  .task + .task { border-top: 1px solid rgba(0,0,0,.04); }
+  .task .box { width: 16px; height: 16px; border-radius: 50%; border: 1.6px solid; flex: none; }
+  .task .txt { font-size: 13px; letter-spacing: .1px; color: #1C1C1E; }
+  .task .more { margin-left: auto; color: #B4B4B9; font-size: 12px; letter-spacing: 1px; }
+
+  .fold { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #8A8A8E; padding: 6px 4px 1px; }
+  .fold .tri { font-size: 9px; transform: translateY(-.5px); }
+
+  .p-foot { display: flex; align-items: center; gap: 9px; }
+  .btn-new {
+    flex: 1; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+    gap: 6px; font-size: 13.5px; font-weight: 600; color: #fff;
+    background: linear-gradient(180deg,#5B96FF,#2F6BE0); box-shadow: 0 5px 14px -4px rgba(47,107,224,.55);
+  }
+  .btn-new .plus { font-size: 15px; font-weight: 500; transform: translateY(-.5px); }
+  .btn-ghost {
+    height: 38px; padding: 0 16px; border-radius: 11px; display: flex; align-items: center;
+    font-size: 13px; color: #3C3C43; background: rgba(120,120,128,.12); border: 1px solid rgba(0,0,0,.05);
+  }
+
+  /* 面板上的状态标签 */
+  .state-tag {
+    position: absolute; font-size: 11px; color: #4A4A50; background: rgba(255,255,255,.86);
+    border: 1px solid rgba(0,0,0,.07); padding: 5px 10px; border-radius: 999px;
+    box-shadow: 0 4px 12px -4px rgba(24,30,58,.28); backdrop-filter: blur(8px);
+  }
+  .state-tag.left { left: 84px; top: 50%; transform: translateY(-50%); }
+  .state-tag.right { right: 428px; top: 34px; }
+
+  /* ---------- 图例 ---------- */
+  .legend { display: flex; align-items: center; gap: 26px; margin-top: 20px; }
+  .swatch { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #46464C; }
+  .swatch .chip { width: 12px; height: 12px; border-radius: 3.5px; }
+  .legend .sep { width: 1px; height: 22px; background: #E2E2E8; }
+</style>
+</head>
+<body>
+
+  <div class="caption">
+    <div>
+      <h1>贴边悬浮 · 四象限待办 App — UI 视觉稿</h1>
+      <div class="sub">macOS · 浅色外观 · 展开态浮动面板 + 收起态贴边胶囊 · 未完成任务优先展示</div>
+    </div>
+    <div class="tag">设计稿 · 非代码实现</div>
+  </div>
+
+  <div class="screen">
+    <div class="menubar">
+      <div class="left"><span class="apple">&#63743;</span><span>访达</span><span>文件</span><span>编辑</span><span>显示</span><span>窗口</span><span>帮助</span></div>
+      <div class="right"><span>􀙨</span><span>􀙇</span><span>10月4日 周六 22:41</span></div>
+    </div>
+
+    <div class="ghost a"><div class="bar"></div></div>
+    <div class="ghost b"><div class="bar"></div></div>
+
+    <div class="snap-line"></div>
+    <div class="dock"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+    <!-- ===== 收起态：贴边胶囊 ===== -->
+    <div class="capsule">
+      <div class="logo">&#10003;</div>
+      <div class="qrow"><div class="dot c-red"></div><div class="num">3</div></div>
+      <div class="qrow"><div class="dot c-blue"></div><div class="num">2</div></div>
+      <div class="qrow"><div class="dot c-amber"></div><div class="num">2</div></div>
+      <div class="qrow"><div class="dot c-gray"></div><div class="num">1</div></div>
+      <div class="divideline"></div>
+      <div class="total"><div class="big">8</div><div class="lbl">未完成</div></div>
+    </div>
+
+    <div class="state-tag left">收起态 · 贴边胶囊</div>
+
+    <!-- ===== 展开态：浮动面板 ===== -->
+    <div class="panel">
+      <div class="p-head">
+        <div class="title">
+          <div class="mark">&#10003;</div>
+          <h2>待办事项</h2>
+        </div>
+        <div class="right">
+          <div class="count">未完成 <b>8</b></div>
+          <div class="collapse">收起</div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-head">
+          <div class="dot c-red"></div><div class="name">重要且紧急</div>
+          <div class="ratio"><b>3</b> / 5</div>
+        </div>
+        <div class="task"><div class="box" style="border-color:#FF3B30"></div><div class="txt">修复发布问题</div><div class="more">···</div></div>
+        <div class="task"><div class="box" style="border-color:#FF3B30"></div><div class="txt">回复客户邮件</div><div class="more">···</div></div>
+        <div class="task"><div class="box" style="border-color:#FF3B30"></div><div class="txt">确认今日发布窗口</div><div class="more">···</div></div>
+        <div class="fold"><span class="tri">&#9656;</span>已完成 2</div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-head">
+          <div class="dot c-blue"></div><div class="name">重要但不紧急</div>
+          <div class="ratio"><b>2</b> / 4</div>
+        </div>
+        <div class="task"><div class="box" style="border-color:#007AFF"></div><div class="txt">制定下季度目标</div><div class="more">···</div></div>
+        <div class="task"><div class="box" style="border-color:#007AFF"></div><div class="txt">学习 SwiftUI 动画</div><div class="more">···</div></div>
+        <div class="fold"><span class="tri">&#9656;</span>已完成 2</div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-head">
+          <div class="dot c-amber"></div><div class="name">不重要但紧急</div>
+          <div class="ratio"><b>2</b> / 3</div>
+        </div>
+        <div class="task"><div class="box" style="border-color:#FF9F0A"></div><div class="txt">预订会议室</div><div class="more">···</div></div>
+        <div class="task"><div class="box" style="border-color:#FF9F0A"></div><div class="txt">回复合作方确认邮件</div><div class="more">···</div></div>
+        <div class="fold"><span class="tri">&#9656;</span>已完成 1</div>
+      </div>
+
+      <div class="sec done">
+        <div class="sec-head">
+          <div class="dot c-gray"></div><div class="name">不重要且不紧急</div>
+          <div class="ratio"><b>1</b> / 2</div>
+        </div>
+        <div class="task"><div class="box" style="border-color:#8E8E93"></div><div class="txt">整理桌面文件</div><div class="more">···</div></div>
+        <div class="fold"><span class="tri">&#9656;</span>已完成 1</div>
+      </div>
+
+      <div class="p-foot">
+        <div class="btn-new"><span class="plus">+</span>新建任务</div>
+        <div class="btn-ghost">收起</div>
+      </div>
+    </div>
+
+    <div class="state-tag right">展开态 · 400pt 毛玻璃浮窗</div>
+  </div>
+
+  <div class="legend">
+    <div class="swatch"><span class="chip" style="background:#FF3B30"></span>重要且紧急</div>
+    <div class="swatch"><span class="chip" style="background:#007AFF"></span>重要但不紧急</div>
+    <div class="swatch"><span class="chip" style="background:#FF9F0A"></span>不重要但紧急</div>
+    <div class="swatch"><span class="chip" style="background:#8E8E93"></span>不重要且不紧急</div>
+    <div class="sep"></div>
+    <div class="swatch">未完成任务排在各象限顶部，已完成折叠到底部「已完成 N」</div>
+  </div>
+
+</body>
+</html>

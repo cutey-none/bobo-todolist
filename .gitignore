@@ -1,0 +1,18 @@
+# macOS metadata
+.DS_Store
+._*
+
+# Swift Package Manager and generated app bundles
+macos/.build/
+macos/build/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Local archives
+*.zip
+

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>贴边悬浮 · 四象限待办 App — UI 设计稿</title>
+<!--
+  ============================================================
+  设计稿 mockup（静态），仅用于评审视觉与交互，不是实现代码。
+  单文件、零外部依赖：不含任何 CDN、外链字体、外链图片、外链脚本。
+  图标全部为内联 SVG 或纯 CSS 绘制，颜色跟随下方 CSS 变量。
+  打开方式：浏览器直接打开本文件。
+  ============================================================
+-->
+<style>
+  /* ---------- 全局 ---------- */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #eaeaec;
+    color: #1d1d1f;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 40px 40px 72px;
+    width: 1800px;
+  }
+
+  /* ---------- 主题变量：浅色 / 深色面板各一份，同页并排对比 ---------- */
+  .t-light {
+    --panel-bg: rgba(250, 250, 252, 0.78);
+    --panel-border: rgba(255, 255, 255, 0.75);
+    --panel-shadow: 0 24px 60px rgba(0, 0, 0, 0.30), 0 2px 8px rgba(0, 0, 0, 0.16);
+    --text: #1d1d1f;
+    --text-dim: #86868b;
+    --divider: rgba(0, 0, 0, 0.08);
+    --card-bg: rgba(255, 255, 255, 0.72);
+    --card-border: rgba(0, 0, 0, 0.06);
+    --input-bg: rgba(255, 255, 255, 0.85);
+    --glyph: #6e6e73;
+  }
+  .t-dark {
+    --panel-bg: rgba(36, 36, 40, 0.74);
+    --panel-border: rgba(255, 255, 255, 0.10);
+    --panel-shadow: 0 28px 70px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.35);
+    --text: #f5f5f7;
+    --text-dim: #98989d;
+    --divider: rgba(255, 255, 255, 0.10);
+    --card-bg: rgba(255, 255, 255, 0.06);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --input-bg: rgba(255, 255, 255, 0.10);
+    --glyph: #a1a1a6;
+  }
+
+  /* 四象限语义色（两套主题共用，仅明度微调） */
+  :root {
+    --q1: #E5484D;   /* 重要且紧急 */
+    --q2: #3B82F6;   /* 重要但不紧急 */
+    --q3: #F59E0B;   /* 不重要但紧急 */
+    --q4: #6B7280;   /* 不重要且不紧急 */
+    --radius-panel: 16px;
+    --radius-card: 8px;
+    --radius-peek: 12px;
+  }
+
+  /* ---------- 页头 ---------- */
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+  .page-head h1 { font-size: 26px; letter-spacing: -0.4px; margin: 0 0 6px; font-weight: 700; }
+  .page-head p { margin: 0; font-size: 13px; color: #6e6e73; }
+  .head-meta { text-align: right; font-size: 12px; color: #86868b; line-height: 1.8; }
+  .badge-mock { display: inline-block; padding: 3px 9px; border-radius: 999px; background: #1d1d1f; color: #fff; font-size: 11px; font-weight: 600; letter-spacing: .3px; }
+
+  /* ---------- 章节标题 ---------- */
+  .section-title { display: flex; align-items: baseline; gap: 10px; margin: 44px 0 14px; }
+  .section-title h2 { font-size: 16px; font-weight: 650; margin: 0; letter-spacing: -0.2px; }
+  .section-title span { font-size: 12px; color: #86868b; }
+
+  /* ---------- 桌面舞台 ---------- */
+  .stage {
+    position: relative; width: 1720px; height: 600px; border-radius: 18px; overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  }
+  .stage-dark {
+    background:
+      radial-gradient(1100px 620px at 18% 12%, #4a3f7a 0%, rgba(74,63,122,0) 62%),
+      radial-gradient(950px 600px at 82% 78%, #7b3f66 0%, rgba(123,63,102,0) 60%),
+      linear-gradient(150deg, #1b1436 0%, #2a1d4d 42%, #3d2350 72%, #552a4a 100%);
+  }
+  .stage-light {
+    background:
+      radial-gradient(1000px 600px at 22% 18%, #dfe7f5 0%, rgba(223,231,245,0) 62%),
+      radial-gradient(900px 560px at 80% 80%, #f5e2e6 0%, rgba(245,226,230,0) 60%),
+      linear-gradient(150deg, #f4f6fb 0%, #e8ecf6 45%, #eef1f7 100%);
+  }
+  /* 菜单栏 */
+  .menubar {
+    position: absolute; top: 0; left: 0; right: 0; height: 26px;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+    font-size: 12px; color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);
+  }
+  .stage-light .menubar { color: rgba(0, 0, 0, 0.72); background: rgba(255, 255, 255, 0.42); }
+  .menubar .m-left, .menubar .m-right { display: flex; gap: 16px; align-items: center; }
+  .menubar .m-right { font-variant-numeric: tabular-nums; }
+
+  /* ---------- App 展开面板 ---------- */
+  .app-panel {
+    position: absolute; top: 62px; right: 96px; width: 560px; height: 470px;
+    background: var(--panel-bg); border: 0.5px solid var(--panel-border);
+    border-radius: var(--radius-panel); box-shadow: var(--panel-shadow);
+    backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
+    padding: 12px; display: flex; flex-direction: column; gap: 8px; color: var(--text);
+  }
+  .panel-top { display: flex; align-items: center; gap: 8px; }
+  .quick-add {
+    flex: 1; height: 30px; border-radius: 8px; border: 0.5px solid var(--card-border);
+    background: var(--input-bg); color: var(--text-dim); font-size: 12.5px;
+    display: flex; align-items: center; padding: 0 10px; gap: 7px;
+    font-family: inherit;
+  }
+  .quick-add .plus { color: var(--text-dim); font-size: 14px; line-height: 1; }
+  .top-actions { display: flex; align-items: center; gap: 2px; }
+  .icon-btn {
+    width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+    color: var(--glyph);
+  }
+  .icon-btn.is-pinned { color: var(--q2); background: rgba(59, 130, 246, 0.14); }
+
+  /* ---------- 四象限网格 ---------- */
+  .qgrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; min-height: 0; }
+  .qcell {
+    border-radius: 12px; border: 0.5px solid var(--card-border); background: rgba(127, 127, 127, 0.06);
+    padding: 8px; display: flex; flex-direction: column; min-height: 0; position: relative;
+  }
+  .qcell.is-active { border-color: rgba(59, 130, 246, 0.55); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18); }
+  .q-head { display: flex; align-items: center; gap: 6px; padding: 0 2px 6px; }
+  .q-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .q-title { font-size: 11px; font-weight: 650; letter-spacing: .1px; }
+  .q-count { margin-left: auto; font-size: 10px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .q-body { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+  .qcell[data-q="1"] .q-dot { background: var(--q1); }
+  .qcell[data-q="2"] .q-dot { background: var(--q2); }
+  .qcell[data-q="3"] .q-dot { background: var(--q3); }
+  .qcell[data-q="4"] .q-dot { background: var(--q4); }
+
+  /* ---------- 任务卡片 ---------- */
+  .task {
+    display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 7px; flex: none;
+    background: var(--card-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-card);
+  }
+  .task.is-hover { box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.45); }
+  .cb { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--glyph); flex: none; }
+  .task-title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task-meta { margin-left: auto; display: flex; align-items: center; gap: 5px; flex: none; }
+  .due { font-size: 10px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .tag { font-size: 9.5px; padding: 1px 6px; border-radius: 999px; background: rgba(127, 127, 127, 0.16); color: var(--text-dim); }
+  .due.is-urgent { color: var(--q1); font-weight: 600; }
+  .task-tools { display: flex; gap: 3px; color: var(--glyph); font-size: 11px; }
+  .drag-handle { color: var(--glyph); font-size: 12px; letter-spacing: -1px; }
+
+  /* ---------- 已完成折叠条 ---------- */
+  .done-strip {
+    margin-top: auto; display: flex; align-items: center; gap: 5px; padding: 5px 6px 1px;
+    border-top: 0.5px solid var(--divider); color: var(--text-dim); font-size: 10.5px;
+  }
+  .done-strip .chev { font-size: 8px; }
+
+  /* ---------- 象限空状态 ---------- */
+  .q-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    border: 1px dashed var(--divider); border-radius: 9px; color: var(--text-dim); text-align: center; padding: 8px;
+  }
+  .q-empty .em { font-size: 15px; opacity: .7; }
+  .q-empty .t1 { font-size: 11px; }
+  .q-empty .t2 { font-size: 9.5px; opacity: .8; }
+
+  /* ---------- 贴边收起态（peek） ---------- */
+  .peek {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    width: 32px; height: 88px; border-radius: var(--radius-peek) 0 0 var(--radius-peek);
+    background: var(--panel-bg); border: 0.5px solid var(--panel-border); border-right: none;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  }
+  .peek .grid-ico { width: 15px; height: 15px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2.5px; }
+  .peek .grid-ico i { border-radius: 1.5px; display: block; }
+  .peek .grid-ico i:nth-child(1) { background: var(--q1); }
+  .peek .grid-ico i:nth-child(2) { background: var(--q2); }
+  .peek .grid-ico i:nth-child(3) { background: var(--q3); }
+  .peek .grid-ico i:nth-child(4) { background: var(--q4); }
+  .peek .peek-count {
+    font-size: 10px; font-weight: 700; color: var(--text); background: rgba(127, 127, 127, 0.18);
+    border-radius: 999px; padding: 1px 6px; font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- 标注 ---------- */
+  .callout {
+    position: absolute; display: flex; align-items: center; gap: 6px;
+    background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 11px; padding: 5px 10px;
+    border-radius: 999px; backdrop-filter: blur(10px); white-space: nowrap;
+  }
+  .callout .num {
+    width: 15px; height: 15px; border-radius: 50%; background: #fff; color: #000;
+    display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; flex: none;
+  }
+  .callout::before {
+    content: ""; position: absolute; border-left: 1px dashed rgba(255, 255, 255, 0.55);
+  }
+  .callout.wide { background: rgba(0, 0, 0, 0.78); }
+
+  /* ---------- 状态卡片行 ---------- */
+  .card-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .spec-card {
+    background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
+    display: flex; flex-direction: column;
+  }
+  .spec-card h3 { font-size: 13.5px; margin: 0 0 3px; font-weight: 650; }
+  .spec-card .sub { font-size: 11.5px; color: #86868b; margin: 0 0 14px; line-height: 1.5; }
+  .canvas {
+    border-radius: 12px; padding: 16px; flex: 1;
+  }
+  .canvas-dark { background: linear-gradient(150deg, #241b3f 0%, #3a2350 100%); }
+  .canvas-light { background: linear-gradient(150deg, #eef1f7 0%, #e2e7f2 100%); }
+
+  /* 卡片内的小面板（用于状态 3/4/5 的近景） */
+  .mini-panel {
+    background: var(--panel-bg); border: 0.5px solid var(--panel-border); border-radius: 14px;
+    box-shadow: var(--panel-shadow); backdrop-filter: blur(30px) saturate(180%);
+    padding: 12px; color: var(--text);
+  }
+
+  /* 状态 3：快速添加输入态 */
+  .add-row { display: flex; align-items: center; gap: 8px; }
+  .add-input {
+    flex: 1; height: 32px; border-radius: 8px; background: var(--input-bg);
+    border: 1.5px solid var(--q2); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    display: flex; align-items: center; padding: 0 10px; font-size: 12.5px; gap: 6px;
+  }
+  .caret { width: 1.5px; height: 14px; background: var(--q2); animation: none; }
+  .chip-row { display: flex; gap: 6px; margin-top: 11px; flex-wrap: wrap; }
+  .qlabel {
+    font-size: 10.5px; padding: 3px 8px; border-radius: 999px; border: 0.5px solid var(--card-border);
+    background: var(--card-bg); color: var(--text-dim); display: flex; align-items: center; gap: 5px;
+  }
+  .qlabel i { width: 6px; height: 6px; border-radius: 50%; display: block; }
+  .qlabel.sel { border-color: var(--q2); color: var(--text); background: rgba(59, 130, 246, 0.14); }
+  .hint { margin-top: 11px; font-size: 10.5px; color: var(--text-dim); display: flex; gap: 10px; }
+  .kbd {
+    font-family: inherit; font-size: 9.5px; padding: 1px 5px; border-radius: 4px;
+    background: rgba(127, 127, 127, 0.18); color: var(--text-dim);
+  }
+
+  /* 状态 4：编辑态 */
+  .field-label { font-size: 10px; color: var(--text-dim); margin: 10px 0 5px; }
+  .text-input {
+    height: 30px; border-radius: 8px; background: var(--input-bg); border: 0.5px solid var(--card-border);
+    display: flex; align-items: center; padding: 0 10px; font-size: 12.5px;
+  }
+  .textarea {
+    border-radius: 8px; background: var(--input-bg); border: 0.5px solid var(--card-border);
+    padding: 8px 10px; font-size: 12px; color: var(--text-dim); line-height: 1.5; min-height: 54px;
+  }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .seg div {
+    font-size: 11px; padding: 6px 8px; border-radius: 7px; background: var(--card-bg);
+    border: 0.5px solid var(--card-border); color: var(--text-dim); display: flex; align-items: center; gap: 6px;
+  }
+  .seg div.sel { border-color: var(--q1); color: var(--text); background: rgba(229, 72, 77, 0.14); font-weight: 600; }
+  .seg i { width: 6px; height: 6px; border-radius: 50%; display: block; flex: none; }
+  .edit-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+  .btn { font-size: 11.5px; padding: 6px 14px; border-radius: 8px; }
+  .btn-primary { background: var(--q2); color: #fff; font-weight: 600; }
+  .btn-ghost { background: var(--card-bg); color: var(--text-dim); border: 0.5px solid var(--card-border); }
+  .btn-danger { color: var(--q1); margin-left: auto; }
+
+  /* 状态 5：空状态 */
+  .empty-card {
+    border-radius: 12px; border: 0.5px solid var(--card-border); background: rgba(127, 127, 127, 0.06);
+    padding: 10px; height: 100%; display: flex; flex-direction: column;
+  }
+  .empty-body {
+    flex: 1; border: 1px dashed var(--divider); border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+    padding: 22px 12px; text-align: center;
+  }
+  .empty-body .ring {
+    width: 34px; height: 34px; border-radius: 50%; background: rgba(127, 127, 127, 0.14);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .empty-body .ring svg { opacity: .55; }
+  .empty-body .t1 { font-size: 12px; font-weight: 600; }
+  .empty-body .t2 { font-size: 10.5px; color: var(--text-dim); line-height: 1.5; }
+
+  /* ---------- 规格说明表 ---------- */
+  .spec-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .spec-block { background: #fff; border-radius: 14px; padding: 16px 18px; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.07); }
+  .spec-block h4 { margin: 0 0 10px; font-size: 12.5px; font-weight: 650; display: flex; align-items: center; gap: 7px; }
+  .spec-block h4 .num {
+    width: 17px; height: 17px; border-radius: 50%; background: #1d1d1f; color: #fff;
+    font-size: 10px; display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .spec-block ul { margin: 0; padding-left: 15px; font-size: 11.5px; color: #3a3a3c; line-height: 1.85; }
+  .spec-block ul li::marker { color: #b0b0b5; }
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+  .sw { display: flex; flex-direction: column; gap: 5px; font-size: 9.5px; color: #86868b; align-items: center; }
+  .sw i { width: 34px; height: 20px; border-radius: 5px; display: block; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; color: #6e6e73; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <h1>贴边悬浮 · 四象限待办 App — UI 设计稿</h1>
+    <p>macOS · v0.1 基本功能 · 浅色与深色两套色板并排对比</p>
+  </div>
+  <div class="head-meta">
+    <span class="badge-mock">静态设计稿 · 非实现代码</span><br>
+    画布 1800 × 自适应 &nbsp;|&nbsp; 基准单位 pt，1pt ≈ 1px
+  </div>
+</div>
+
+<div class="section-title">
+  <h2>一、深色环境 · 默认展开态 + 贴边收起态</h2>
+  <span>面板毛玻璃浮在桌面上，右侧贴边条常驻</span>
+</div>
+
+<!-- ============ 舞台 A：深色桌面 ============ -->
+<div class="stage stage-dark t-dark">
+  <div class="menubar">
+    <div class="m-left"><span></span><span>访达</span><span>文件</span><span>编辑</span><span>显示</span></div>
+    <div class="m-right"><span>◉</span><span>􀊫</span><span>22:41</span><span>10月3日 周五</span></div>
+  </div>
+
+  <!-- 展开面板 -->
+  <div class="app-panel">
+    <div class="panel-top">
+      <div class="quick-add"><span class="plus">+</span><span>快速添加任务…</span></div>
+      <div class="top-actions">
+        <div class="icon-btn is-pinned" title="钉住">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 2h4l-.5 4 2.5 2v1.5H8.6V14L8 14.6 7.4 14V9.5H4V8l2.5-2L6 2z" fill="currentColor"/></svg>
+        </div>
+        <div class="icon-btn">—</div>
+        <div class="icon-btn">✕</div>
+      </div>
+    </div>
+
+    <div class="qgrid">
+      <!-- 象限 1：重要且紧急 -->
+      <div class="qcell" data-q="1">
+        <div class="q-head">
+          <span class="q-dot"></span><span class="q-title">重要且紧急</span>
+          <span class="q-count">3</span>
+        </div>
+        <div class="q-body">
+          <div class="task">
+            <span class="cb"></span><span class="task-title">交周报</span>
+            <span class="task-meta"><span class="due is-urgent">今天 18:00</span></span>
+          </div>
+          <div class="task is-hover">
+            <span class="drag-handle">⠿</span><span class="cb"></span><span class="task-title">修复线上崩溃 bug</span>
+            <span class="task-meta">
+              <span class="tag">转发</span>
+              <span class="task-tools"><span>✕</span></span>
+            </span>
+          </div>
+          <div class="task">
+            <span class="cb"></span><span class="task-title">回复客户关键邮件</span>
+          </div>
+        </div>
+        <div class="done-strip"><span class="chev">▸</span><span>已完成 (2)</span></div>
+      </div>
+
+      <!-- 象限 2：重要但不紧急 -->
+      <div class="qcell" data-q="2">
+        <div class="q-head">
+          <span class="q-dot"></span><span class="q-title">重要但不紧急</span>
+          <span class="q-count">2</span>
+        </div>
+        <div class="q-body">
+          <div class="task">
+            <span class="cb"></span><span class="task-title">学习 SwiftUI 动画</span>
+          </div>
+          <div class="task">
+            <span class="cb"></span><span class="task-title">制定 Q4 运动计划</span>
+            <span class="task-meta"><span class="tag">健康</span></span>
+          </div>
+        </div>
+        <div class="done-strip"><span class="chev">▸</span><span>已完成 (1)</span></div>
+      </div>
+
+      <!-- 象限 3：不重要但紧急 -->
+      <div class="qcell" data-q="3">
+        <div class="q-head">
+          <span class="q-dot"></span><span class="q-title">不重要但紧急</span>
+          <span class="q-count">2</span>
+        </div>
+        <div class="q-body">
+          <div class="task">
+            <span class="cb"></span><span class="task-title">回会议室预约邮件</span>
+          </div>
+          <div class="task">
+            <span class="cb"></span><span class="task-title">帮同事确认排期</span>
+            <span class="task-meta"><span class="due">今天</span></span>
+          </div>
+        </div>
+        <div class="done-strip"><span class="chev">▸</span><span>已完成 (0)</span></div>
+      </div>
+
+      <!-- 象限 4：不重要且不紧急（空状态） -->
+      <div class="qcell" data-q="4">
+        <div class="q-head">
+          <span class="q-dot"></span><span class="q-title">不重要且不紧急</span>
+          <span class="q-count">0</span>
+        </div>
+        <div class="q-empty">
+          <span class="em">◇</span>
+          <span class="t1">暂无任务</span>
+          <span class="t2">拖到这里的都会沉到底部</span>
+        </div>
+        <div class="done-strip"><span class="chev">▸</span><span>已完成 (1)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 贴边收起态 -->
+  <div class="peek">
+    <span class="grid-ico"><i></i><i></i><i></i><i></i></span>
+    <span class="peek-count">5</span>
+  </div>
+
+  <!-- 标注 -->
+  <div class="callout" style="top: 300px; left: 70px;">
+    <span class="num">3</span><span>悬停任务：显示拖拽手柄 ⠿ 与删除 ✕</span>
+  </div>
+  <div class="callout" style="top: 36px; right: 100px;">
+    <span class="num">2</span><span>展开面板 560 × 470pt · 圆角 16pt · 毛玻璃</span>
+  </div>
+  <div class="callout" style="top: 500px; right: 40px;">
+    <span class="num">1</span><span>贴边条 32 × 88pt</span>
+  </div>
+</div>
+
+<div class="section-title">
+  <h2>二、浅色环境 · 同一面板的浅色色板</h2>
+  <span>结构与深色完全一致，仅替换材质与文字色</span>
+</div>
+
+<!-- ============ 舞台 B：浅色桌面 ============ -->
+<div class="stage stage-light t-light">
+  <div class="menubar">
+    <div class="m-left"><span></span><span>访达</span><span>文件</span><span>编辑</span><span>显示</span></div>
+    <div class="m-right"><span>◉</span><span>􀊫</span><span>22:41</span><span>10月3日 周五</span></div>
+  </div>
+
+  <div class="app-panel">
+    <div class="panel-top">
+      <div class="quick-add"><span class="plus">+</span><span>快速添加任务…</span></div>
+      <div class="top-actions">
+        <div class="icon-btn is-pinned" title="钉住">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M6 2h4l-.5 4 2.5 2v1.5H8.6V14L8 14.6 7.4 14V9.5H4V8l2.5-2L6 2z" fill="currentColor"/></svg>
+        </div>
+        <div class="icon-btn">—</div>
+        <div class="icon-btn">✕</div>
+      </div>
+    </div>
+
+    <div class="qgrid">
+      <div class="qcell" data-q="1">
+        <div class="q-head"><span class="q-dot"></span><span class="q-title">重要且紧急</span><span class="q-count">3</span></div>
+        <div class="q-body">
+          <div class="task"><span class="cb"></span><span class="task-title">交周报</span><span class="task-meta"><span class="due is-urgent">今天 18:00</span></span></div>
+          <div class="task"><span class="cb"></span><span class="task-title">修复线上崩溃 bug</span><span class="task-meta"><span class="tag">转发</span></span></div>
+          <div class="task"><span class="cb"></span><span class="task-title">回复客户关键邮件</span></div>
+        </div>
+        <div class="done-strip"><span class="chev">▸</span><span>已完成 (2)</span></div>
+      </div>
+
+      <div class="qcell" data-q="2">
+        <div class="q-head"><span class="q-dot"></span><span class="q-title">重要但不紧急</span><span class="q-count">2</span></div>
+        <div class="q-body">
+          <div class="task"><span class="cb"></span><span class="task-title">学习 SwiftUI 动画</span></div>
+          <div class="task"><span class="cb"></span><span class="task-title">制定 Q4 运动计划</span><span class="task-meta"><span class="tag">健康</span></span></div>
+        </div>
+        <div class="done-strip"><span class="chev">▸</span><span>已完成 (1)</span></div>
+      </div>
+
+      <div class="qcell" data-q="3">
+        <div class="q-head"><span class="q-dot"></span><span class="q-title">不重要但紧急</span><span class="q-count">2</span></div>
+        <div class="q-body">
+          <div class="task"><span class="cb"></span><span class="task-title">回会议室预约邮件</span></div>
+          <div class="task"><span class="cb"></span><span class="task-title">帮同事确认排期</span><span class="task-meta"><span class="due">今天</span></span></div>
+        </div>
+        <div class="done-strip"><span class="chev">▸</span><span>已完成 (0)</span></div>
+      </div>
+
+      <div class="qcell" data-q="4">
+        <div class="q-head"><span class="q-dot"></span><span class="q-title">不重要且不紧急</span><span class="q-count">0</span></div>
+        <div class="q-empty">
+          <span class="em">◇</span>
+          <span class="t1">暂无任务</span>
+          <span class="t2">拖到这里的都会沉到底部</span>
+        </div>
+        <div class="done-strip"><span class="chev">▸</span><span>已完成 (1)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="peek">
+    <span class="grid-ico"><i></i><i></i><i></i><i></i></span>
+    <span class="peek-count">5</span>
+  </div>
+</div>
+
+<div class="section-title">
+  <h2>三、快速添加态 / 任务编辑态 / 象限空状态</h2>
+  <span>三个高频局部交互的近景</span>
+</div>
+
+<div class="card-row">
+
+  <!-- 状态 3：快速添加输入态 -->
+  <div class="spec-card">
+    <h3>③ 快速添加输入态</h3>
+    <p class="sub">全局快捷键唤起后输入框直接聚焦，用 <span class="kbd">!1</span>–<span class="kbd">!4</span> 或点击色块指定象限，回车即建并自动收回贴边。</p>
+    <div class="canvas canvas-dark t-dark" style="display:flex; align-items:center;">
+      <div class="mini-panel" style="width: 100%;">
+        <div class="add-row">
+          <div class="add-input">
+            <span>准备季度复盘材料</span><span class="caret"></span>
+          </div>
+        </div>
+        <div class="chip-row">
+          <span class="qlabel"><i style="background: var(--q1)"></i>!1 重要紧急</span>
+          <span class="qlabel sel"><i style="background: var(--q2)"></i>!2 重要不紧急</span>
+          <span class="qlabel"><i style="background: var(--q3)"></i>!3 不重要紧急</span>
+          <span class="qlabel"><i style="background: var(--q4)"></i>!4 不重要不紧急</span>
+        </div>
+        <div class="hint">
+          <span><span class="kbd">↩</span> 保存</span>
+          <span><span class="kbd">Tab</span> 切象限</span>
+          <span><span class="kbd">Esc</span> 取消</span>
+          <span>默认落入所选象限，插到未完成区顶部</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 状态 4：任务编辑态 -->
+  <div class="spec-card">
+    <h3>④ 任务编辑态</h3>
+    <p class="sub">点击任务卡片任意位置进入编辑；象限用四色分段控件切换，改完即迁移到目标象限。</p>
+    <div class="canvas canvas-dark t-dark" style="display:flex; align-items:center;">
+      <div class="mini-panel" style="width: 100%;">
+        <div class="field-label">标题</div>
+        <div class="text-input">修复线上崩溃 bug<span class="caret"></span></div>
+        <div class="field-label">所属象限</div>
+        <div class="seg">
+          <div class="sel"><i style="background: var(--q1)"></i>重要且紧急</div>
+          <div><i style="background: var(--q2)"></i>重要但不紧急</div>
+          <div><i style="background: var(--q3)"></i>不重要但紧急</div>
+          <div><i style="background: var(--q4)"></i>不重要且不紧急</div>
+        </div>
+        <div class="field-label">备注</div>
+        <div class="textarea">复现步骤见 issue #482，先回滚再定位。</div>
+        <div class="edit-foot">
+          <span class="btn btn-primary">保存</span>
+          <span class="btn btn-ghost">取消</span>
+          <span class="btn btn-danger">删除</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 状态 5：空状态 -->
+  <div class="spec-card">
+    <h3>⑤ 象限空状态</h3>
+    <p class="sub">某一象限没有未完成任务时不隐藏该格，保留虚线占位与「+ 添加任务」，避免矩阵塌陷、位置记不住。</p>
+    <div class="canvas canvas-light t-light" style="display:flex; align-items:center;">
+      <div class="mini-panel" style="width: 100%; padding: 10px;">
+        <div class="empty-card">
+          <div class="q-head" style="padding-bottom: 8px;">
+            <span class="q-dot" style="background: var(--q4);"></span>
+            <span class="q-title">不重要且不紧急</span>
+            <span class="q-count">0</span>
+          </div>
+          <div class="empty-body">
+            <div class="ring">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3.5v9M3.5 8h9" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div class="t1">这一格空着，挺好。</div>
+            <div class="t2">想到什么随手丢进来，<br>它不值得占用你的注意力。</div>
+          </div>
+          <div class="hint" style="margin-top: 8px;">
+            <span>点击 <span class="kbd">+ 添加任务</span> 或拖任务卡片到此格</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">
+  <h2>四、尺寸、色板与交互标注</h2>
+  <span>实现时按此表取值</span>
+</div>
+
+<div class="spec-grid">
+  <div class="spec-block">
+    <h4><span class="num">1</span>贴边条（收起态）</h4>
+    <ul>
+      <li>尺寸 <span class="mono">32 × 88pt</span>，圆角 <span class="mono">12pt</span>（外侧不圆角）</li>
+      <li>贴屏幕右缘（或左缘）垂直居中，可沿边缘上下拖动</li>
+      <li>内容：四色小方块图标 + 未完成总数徽标</li>
+      <li>悬停 <span class="mono">120ms</span> 后自动展开；移出 <span class="mono">350ms</span> 后收起</li>
+      <li>系统全屏 App / 切 Space 时保持置顶可见</li>
+    </ul>
+  </div>
+
+  <div class="spec-block">
+    <h4><span class="num">2</span>展开面板</h4>
+    <ul>
+      <li>默认 <span class="mono">560 × 470pt</span>，最小 <span class="mono">420 × 320pt</span>，圆角 <span class="mono">16pt</span></li>
+      <li>材质：系统毛玻璃 <span class="mono">backdrop-blur 30px / saturate 180%</span></li>
+      <li>阴影 <span class="mono">0 24 60 rgba(0,0,0,.30)</span>，边框 <span class="mono">0.5pt</span> 高光</li>
+      <li>顶部：快速添加输入条 + 钉住 / 最小化 / 关闭</li>
+      <li>展开动效：<span class="mono">scale .98 → 1</span> + 透明度，<span class="mono">220ms ease-out</span></li>
+    </ul>
+  </div>
+
+  <div class="spec-block">
+    <h4><span class="num">3</span>四象限与任务卡片</h4>
+    <ul>
+      <li>2×2 等分网格，象限间距 <span class="mono">8pt</span>，内边距 <span class="mono">8pt</span>，每格最小高 <span class="mono">150pt</span></li>
+      <li>象限标题 11pt / 600，右上角显示未完成计数</li>
+      <li>任务卡片高 <span class="mono">30pt</span>，圆角 <span class="mono">8pt</span>，标题 12pt 单行省略</li>
+      <li>悬停显示拖拽手柄 ⠿ 与删除 ✕；拖拽可跨象限</li>
+      <li>已完成任务收进底部「已完成 (n)」折叠条，默认收起</li>
+    </ul>
+  </div>
+
+  <div class="spec-block">
+    <h4><span class="num">4</span>语义色板</h4>
+    <div class="swatches">
+      <div class="sw"><i style="background:#E5484D"></i>#E5484D</div>
+      <div class="sw"><i style="background:#3B82F6"></i>#3B82F6</div>
+      <div class="sw"><i style="background:#F59E0B"></i>#F59E0B</div>
+      <div class="sw"><i style="background:#6B7280"></i>#6B7280</div>
+    </div>
+    <ul style="margin-top: 10px;">
+      <li>依次对应：重要且紧急 / 重要但不紧急 / 不重要但紧急 / 不重要且不紧急</li>
+      <li>浅色面板底色 <span class="mono">rgba(250,250,252,.78)</span>，深色 <span class="mono">rgba(36,36,40,.74)</span></li>
+      <li>文字：浅色 <span class="mono">#1D1D1F</span> / 深色 <span class="mono">#F5F5F7</span>，次要文字 <span class="mono">#86868B</span> / <span class="mono">#98989D</span></li>
+      <li>全部颜色随系统外观自动切换</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
