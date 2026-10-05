@@ -7,7 +7,7 @@ struct PanelBodyView: View {
     let completedCounts: [Quadrant: Int]
     let activeTasks: [Quadrant: [TaskItem]]
     let completedTasks: [Quadrant: [TaskItem]]
-    let progressCounts: [UUID: Int]
+    let describedTaskIDs: Set<UUID>
     let onToggle: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
     let onDelete: (TaskItem) -> Void
@@ -53,7 +53,7 @@ struct PanelBodyView: View {
                             quadrant: quadrant,
                             activeTasks: activeTasks[quadrant] ?? [],
                             completedTasks: completedTasks[quadrant] ?? [],
-                            progressCounts: progressCounts,
+                            describedTaskIDs: describedTaskIDs,
                             focusedTaskID: state.focusedTaskID,
                             onToggle: onToggle,
                             onEdit: onEdit,

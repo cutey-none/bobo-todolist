@@ -17,7 +17,8 @@ final class AppState: ObservableObject {
     @Published var selectedQuadrant: Quadrant = .importantUrgent
     @Published var composerOpen = false
     @Published var editing: TaskItem?
-    @Published var progressPreview: Data?
+    @Published var imagePreview: Data?
+    @Published var editorCloseRequest = 0
     @Published var undo: UndoEntry?
     @Published var focusedTaskID: UUID?
     @Published var isDraggingTask = false
@@ -125,6 +126,10 @@ final class AppState: ObservableObject {
         guard let task = editing else { return }
         repository.update(task, title: title, note: note, quadrant: quadrant)
         editing = nil
+    }
+
+    func requestEditorClose() {
+        editorCloseRequest += 1
     }
 
     // MARK: - 键盘选择

@@ -5,7 +5,7 @@ struct QuadrantCardView: View {
     let quadrant: Quadrant
     let activeTasks: [TaskItem]
     let completedTasks: [TaskItem]
-    let progressCounts: [UUID: Int]
+    let describedTaskIDs: Set<UUID>
     let focusedTaskID: UUID?
     let onToggle: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
@@ -27,7 +27,7 @@ struct QuadrantCardView: View {
                 ForEach(Array(activeTasks.enumerated()), id: \.element.id) { index, task in
                     TaskRowView(
                         task: task,
-                        progressCount: progressCounts[task.id, default: 0],
+                        hasDescription: describedTaskIDs.contains(task.id),
                         isFocused: focusedTaskID == task.id,
                         isTargeted: targetedTaskID == task.id,
                         onToggle: { withAnimation(.easeOut(duration: 0.18)) { onToggle(task) } },
@@ -135,7 +135,7 @@ struct QuadrantCardView: View {
                 ForEach(completedTasks) { task in
                     TaskRowView(
                         task: task,
-                        progressCount: progressCounts[task.id, default: 0],
+                        hasDescription: describedTaskIDs.contains(task.id),
                         isFocused: focusedTaskID == task.id,
                         isTargeted: false,
                         onToggle: { withAnimation(.easeOut(duration: 0.18)) { onToggle(task) } },

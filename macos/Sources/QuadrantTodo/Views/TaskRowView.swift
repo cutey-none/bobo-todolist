@@ -3,7 +3,7 @@ import SwiftUI
 /// 任务卡片：勾选框 + 标题 + 悬停操作（PRD 4.6）。
 struct TaskRowView: View {
     let task: TaskItem
-    var progressCount: Int = 0
+    var hasDescription = false
     let isFocused: Bool
     let isTargeted: Bool
     let onToggle: () -> Void
@@ -44,8 +44,8 @@ struct TaskRowView: View {
             }
             .buttonStyle(.plain)
 
-            if progressCount > 0 {
-                Label("\(progressCount)", systemImage: "text.bubble.fill")
+            if hasDescription {
+                Image(systemName: "text.alignleft")
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.secondaryText)
                     .fixedSize()
@@ -97,11 +97,12 @@ struct TaskRowView: View {
 
     private var tooltipText: String {
         var lines = [task.title]
-        if let note = task.note?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
-            lines.append(note)
+        let description = TaskDescription.plainText(TaskDescription.decode(task.note))
+        if !description.isEmpty {
+            let limit = 120
+            lines.append(description.count > limit ? String(description.prefix(limit)) + "…" : description)
         }
         lines.append(task.isCompleted ? "\(task.quadrant.name) · 已完成" : task.quadrant.name)
-        if progressCount > 0 { lines.append("进度 \(progressCount) 条") }
         return lines.joined(separator: "\n")
     }
 }

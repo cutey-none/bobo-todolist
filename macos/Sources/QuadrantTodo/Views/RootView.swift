@@ -7,10 +7,8 @@ struct RootView: View {
     @ObservedObject var state: AppState
     @ObservedObject var settings: SettingsStore
     @Query private var allTasks: [TaskItem]
-    @Query private var allProgress: [ProgressEntry]
-
-    private var progressCounts: [UUID: Int] {
-        allProgress.reduce(into: [:]) { $0[$1.taskID, default: 0] += 1 }
+    private var describedTaskIDs: Set<UUID> {
+        repository.describedTaskIDs(from: allTasks)
     }
 
     @State private var eventMonitor: Any?
@@ -58,7 +56,7 @@ struct RootView: View {
             completedCounts: completedCounts,
             activeTasks: activeByQuadrant,
             completedTasks: completedByQuadrant,
-            progressCounts: progressCounts,
+            describedTaskIDs: describedTaskIDs,
             onToggle: { state.toggleCompletion($0) },
             onEdit: { task in
                 state.controller?.focusPanelIfNeeded()
@@ -111,13 +109,9 @@ struct RootView: View {
             EditOverlayView(
                 task: task,
                 repository: repository,
-                preview: $state.progressPreview,
-                onSave: { title, note, quadrant in
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        state.commitEdit(title: title, note: note, quadrant: quadrant)
-                    }
-                },
-                onClose: { withAnimation(.easeOut(duration: 0.15)) { state.progressPreview = nil; state.editing = nil } }
+                state: state,
+                preview: $state.imagePreview,
+                onClose: { withAnimation(.easeOut(duration: 0.15)) { state.imagePreview = nil; state.editing = nil } }
             )
             .id(task.id)
         }
@@ -213,10 +207,10 @@ struct RootView: View {
 
             switch event.keyCode {
             case 53: // Esc
-                if state.progressPreview != nil {
-                    state.progressPreview = nil
+                if state.imagePreview != nil {
+                    state.imagePreview = nil
                 } else if state.editing != nil {
-                    withAnimation(.easeOut(duration: 0.15)) { state.editing = nil }
+                    state.requestEditorClose()
                 } else if state.composerOpen {
                     state.composerOpen = false
                 } else {
