@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // progress entries intentionally remained available for undo. A relaunch means
         // that undo is no longer possible, so reclaim any orphaned text/images now.
         persistence.repository.purgeOrphanProgress()
+        persistence.repository.migrateLegacyProgressToDescriptions(from: persistence.repository.allTasks())
 
         statusItem = StatusItemController(
             state: appState,

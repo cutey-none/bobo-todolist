@@ -60,6 +60,47 @@ struct TaskRepository {
         save()
     }
 
+    func descriptionBlocks(for task: TaskItem) -> [DescriptionBlock] {
+        TaskDescription.decode(task.note)
+    }
+
+    func saveDescription(_ blocks: [DescriptionBlock], for task: TaskItem) {
+        task.note = TaskDescription.encode(blocks)
+        task.updatedAt = Date()
+        save()
+    }
+
+    func describedTaskIDs(from tasks: [TaskItem]) -> Set<UUID> {
+        Set(tasks.compactMap { task in
+            // `TaskDescription.encode` stores nil for empty content, so presence can be
+            // checked without repeatedly decoding embedded image data during list renders.
+            guard let note = task.note?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !note.isEmpty else { return nil }
+            return task.id
+        })
+    }
+
+    func migrateLegacyProgressToDescriptions(from tasks: [TaskItem]) {
+        var migrated = false
+        for task in tasks {
+            let entries = progress(for: task.id).sorted { $0.createdAt < $1.createdAt }
+            guard !entries.isEmpty else { continue }
+            var blocks = descriptionBlocks(for: task)
+            for entry in entries {
+                let text = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty { blocks.append(DescriptionBlock(kind: .paragraph, text: text)) }
+                if let image = entry.imageData, !image.isEmpty {
+                    blocks.append(DescriptionBlock(kind: .image, image: image))
+                }
+                context.delete(entry)
+            }
+            task.note = TaskDescription.encode(blocks)
+            task.updatedAt = Date()
+            migrated = true
+        }
+        if migrated { save() }
+    }
+
     func toggleCompletion(_ task: TaskItem) {
         task.isCompleted.toggle()
         if task.isCompleted {
