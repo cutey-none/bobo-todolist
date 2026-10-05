@@ -8,6 +8,11 @@ let package = Package(
         .executableTarget(
             name: "QuadrantTodo",
             path: "Sources/QuadrantTodo"
+        ),
+        .testTarget(
+            name: "QuadrantTodoTests",
+            dependencies: ["QuadrantTodo"],
+            path: "Tests/QuadrantTodoTests"
         )
     ],
     swiftLanguageVersions: [.v5]
