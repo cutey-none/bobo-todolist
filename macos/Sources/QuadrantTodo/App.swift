@@ -66,6 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("QuadrantTodo: 启动即展开")
             appState.expand()
         }
+        #if DEBUG
+        DebugUIDriver.startIfRequested(window: controller.panel)
+        #endif
     }
 
     private func registerHotKey() {
