@@ -50,6 +50,22 @@
 | 21 | 事项详情入口 | 任务列表保留单层事项结构；有描述的事项显示正文图标，不显示子事项或进度条数 | `21-task-description-list.png` |
 | 22 | 结构化事项描述 | 详情页以事项标题为页面标题，描述可混排小标题、正文和普通项目符号列表，并提供图片入口；底部显示自动保存状态，同时保留取消与保存更改 | `22-task-description-editor.png` |
 
+## Markdown 描述与单击查看 / 双击编辑
+
+验证方式：debug 构建 + `QT_DATA_DIR` 独立数据目录（不触碰真实数据）+ `QT_UI_SCRIPT` 向面板窗口投递真实 `NSEvent` 鼠标 / 输入事件（会走完整的 AppKit → SwiftUI 手势识别链路）+ `screencapture -l` 截取窗口 + `sqlite3` 查询落盘内容。测试前用 sqlite 写入一条 Markdown 描述和一条旧版 JSON 结构化描述（含一张 PNG）。
+
+| # | 功能点 | 验证结果 | 证据 |
+| --- | --- | --- | --- |
+| 23 | 单击原地展开查看 | 单击「修复发布阻塞问题」后，在主界面该行下方展开渲染后的 Markdown：二级 / 三级标题、**加粗**、列表、`行内代码`、有序列表、引用；描述图标变为强调色；再次单击收起 | `23-single-click-expand-markdown.png` |
+| 24 | 旧版描述迁移 | 启动后数据库中 JSON 块描述被改写为 `### 关键信息…- 刷新后内容仍然保留…![图片](attachments/<uuid>.png)`，PNG 落在 `Attachments/`；单击展开可见标题、正文、列表与图片 | `24-legacy-description-migrated.png` |
+| 25 | 双击弹框编辑 | 双击同一行打开「编辑事项」弹框，描述区显示 Markdown 源码（等宽字体），带「Markdown」标记与「编辑 / 预览」切换 | `25-double-click-markdown-editor.png` |
+| 26 | 工具栏改写当前行 | 输入「新增小节」后点「标题」，该行变为 `### 新增小节`；继续输入 `- …` 列表项 | `26-editor-toolbar-heading-list.png` |
+| 27 | 预览 | 切到「预览」后渲染 Markdown，编辑工具栏置灰 | `27-editor-preview.png` |
+| 28 | 双击不会误触展开 | 双击打开弹框并「保存更改」后回到列表，该行仍为收起态（双击优先识别，单击仅在未构成双击时触发） | `28-double-click-does-not-expand.png` |
+| 29 | Markdown 持久化 | `sqlite3` 查询 `ZNOTE` 为纯 Markdown 文本（末尾含 `### 新增小节\n- 在弹框里用 Markdown 追加的列表项`）；退出重启后单击展开，新增内容仍在 | `29-relaunch-persisted-markdown.png` |
+
+> 验证中发现：SwiftUI 宿主视图是翻转坐标系，脚本驱动最初把点击落到了错误的行；原生分段控件在 `mouseDown` 中进入跟踪循环等待 `mouseUp`，同步投递会卡住主线程。两处都已在 `DebugUIDriver` 中修正（按 `isFlipped` 换算坐标、先把 `mouseUp` 放入事件队列）。
+
 ## 已验证但未留图的项
 
 - **F4 拖拽改象限**：把「确认今日发布窗口」从「重要且紧急」拖到「重要但不紧急」后，辅助功能树显示计数由 3/4、0/1 变为 4/5、0/1，任务出现在目标象限。
