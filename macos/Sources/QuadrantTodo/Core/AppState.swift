@@ -8,6 +8,11 @@ struct UndoEntry: Identifiable {
     let title: String
 }
 
+struct InputFocusRequest: Equatable {
+    let quadrant: Quadrant
+    let serial: Int
+}
+
 /// 短暂、非阻塞的操作反馈；失败提示停留更久。
 struct Notice: Identifiable, Equatable {
     let id = UUID()
@@ -20,9 +25,14 @@ struct Notice: Identifiable, Equatable {
 final class AppState: ObservableObject {
     @Published var isExpanded = false
     @Published var isPinned = false
-    @Published var draft = ""
+    /// 各象限尾部输入行的未提交草稿；放在共享状态里，跨布局切换不会丢失。
+    @Published var drafts: [Quadrant: String] = [:]
+    /// 输入行的校验或保存失败提示。
+    @Published var inputProblems: [Quadrant: String] = [:]
+    /// 当前获得焦点的输入行（由视图同步）。
+    @Published var focusedInput: Quadrant?
+    /// 最近使用的输入行：全局快捷键 / ⌘N 聚焦到这里。
     @Published var selectedQuadrant: Quadrant = .importantUrgent
-    @Published var composerOpen = false
     @Published var editing: TaskItem?
     @Published var imagePreview: Data?
     @Published var editorCloseRequest = 0
@@ -33,8 +43,8 @@ final class AppState: ObservableObject {
     /// 主界面中展开查看描述的事项（单击切换，双击进入编辑）。
     @Published var expandedTaskIDs: Set<UUID> = []
     @Published var isDraggingTask = false
-    /// 用于请求输入框聚焦（每次自增都会让视图重新获取焦点）。
-    @Published var focusRequest = 0
+    /// 请求某个输入行获得焦点（每次自增都会让视图重新获取焦点）。
+    @Published private(set) var inputFocusRequest: InputFocusRequest?
 
     weak var controller: PanelController?
 
@@ -52,13 +62,13 @@ final class AppState: ObservableObject {
 
     func expand(focusInput: Bool = false) {
         guard !isExpanded else {
-            if focusInput { openComposer() }
+            if focusInput { self.focusInput(selectedQuadrant) }
             return
         }
         isExpanded = true
         controller?.panel.orderFrontRegardless()
         if focusInput {
-            openComposer()
+            self.focusInput(selectedQuadrant)
         } else {
             controller?.focusPanelIfNeeded()
         }
@@ -68,7 +78,6 @@ final class AppState: ObservableObject {
         guard isExpanded else { return }
         isPinned = false
         isExpanded = false
-        composerOpen = false
         focusedTaskID = nil
     }
 
@@ -80,26 +89,58 @@ final class AppState: ObservableObject {
         }
     }
 
-    func openComposer(quadrant: Quadrant? = nil) {
-        if let quadrant { selectedQuadrant = quadrant }
-        composerOpen = true
+    func focusInput(_ quadrant: Quadrant) {
+        selectedQuadrant = quadrant
+        expand()
         controller?.focusPanelIfNeeded()
         // 等窗口真正成为 key window 后再要焦点，否则 SwiftUI 的焦点会被丢弃。
         DispatchQueue.main.async { [weak self] in
-            self?.focusRequest += 1
+            let serial = (self?.inputFocusRequest?.serial ?? 0) + 1
+            self?.inputFocusRequest = InputFocusRequest(quadrant: quadrant, serial: serial)
         }
-        expand()
+    }
+
+    /// 有未提交的输入草稿时保持面板展开，避免打断录入。
+    var hasUnsubmittedDraft: Bool {
+        drafts.values.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     // MARK: - 任务操作
 
-    func submitDraft() {
-        let parsed = DraftParser.parse(draft, fallback: selectedQuadrant)
-        guard let title = parsed.title, !title.isEmpty else { return }
-        repository.addTask(title: title, quadrant: parsed.quadrant, to: repository.allTasks())
-        draft = ""
-        selectedQuadrant = parsed.quadrant
-        focusRequest += 1
+    /// 输入行内容变化：粘贴的换行转空格，超长时立即提示（不截断）。
+    func updateDraft(_ text: String, in quadrant: Quadrant) {
+        let single = TaskTitle.singleLine(text)
+        drafts[quadrant] = single
+        if case .failure(.tooLong) = TaskTitle.validate(single) {
+            inputProblems[quadrant] = TaskTitle.Problem.tooLong.message
+        } else {
+            inputProblems[quadrant] = nil
+        }
+    }
+
+    /// Enter 提交：保存成功后追加到该象限末尾、清空并保持焦点；失败时保留文本。
+    func submitDraft(in quadrant: Quadrant) {
+        switch TaskTitle.validate(drafts[quadrant] ?? "") {
+        case .failure(let problem):
+            inputProblems[quadrant] = problem.message
+        case .success(let title):
+            guard repository.addTask(title: title, quadrant: quadrant, to: repository.allTasks()) != nil else {
+                inputProblems[quadrant] = "保存失败，请重试"
+                return
+            }
+            drafts[quadrant] = ""
+            inputProblems[quadrant] = nil
+            show("已添加到\(quadrant.name)")
+        }
+        selectedQuadrant = quadrant
+    }
+
+    /// Esc：清空当前输入行的未提交草稿，保留焦点。返回是否有内容被清空。
+    func clearDraft(in quadrant: Quadrant) -> Bool {
+        let hadContent = !(drafts[quadrant] ?? "").isEmpty || inputProblems[quadrant] != nil
+        drafts[quadrant] = ""
+        inputProblems[quadrant] = nil
+        return hadContent
     }
 
     /// 最新一次可撤销的删除。
@@ -188,22 +229,5 @@ final class AppState: ObservableObject {
     func focusedTask(_ tasks: [TaskItem]) -> TaskItem? {
         guard let id = focusedTaskID else { return nil }
         return tasks.first { $0.id == id }
-    }
-}
-
-/// 解析 `!1`–`!4` 前缀（PRD F5）。
-enum DraftParser {
-    static func parse(_ raw: String, fallback: Quadrant) -> (title: String?, quadrant: Quadrant) {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return (nil, fallback) }
-
-        let parts = trimmed.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
-        if let first = parts.first, first.count == 2, first.hasPrefix("!"),
-           let number = Int(first.dropFirst()), let quadrant = Quadrant.from(shortcutNumber: number) {
-            let rest = parts.count > 1 ? String(parts[1]) : ""
-            let title = rest.trimmingCharacters(in: .whitespacesAndNewlines)
-            return (title.isEmpty ? nil : String(title.prefix(200)), quadrant)
-        }
-        return (String(trimmed.prefix(200)), fallback)
     }
 }

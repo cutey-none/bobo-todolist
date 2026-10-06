@@ -12,15 +12,14 @@ struct PanelBodyView: View {
     let onToggle: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
     let onDelete: (TaskItem) -> Void
-    let onAdd: (Quadrant) -> Void
     let onDrop: (String, Quadrant, Int?) -> Void
     let onCollapse: () -> Void
-    let onSubmitDraft: () -> Void
     let onWindowDragBegan: () -> Void
     let onWindowDrag: () -> Void
     let onWindowDragEnded: () -> Void
 
     @State private var windowDragging = false
+    @FocusState private var focusedInput: Quadrant?
 
     private var totalActive: Int { activeCounts.values.reduce(0, +) }
 
@@ -29,8 +28,6 @@ struct PanelBodyView: View {
             header
             Divider().overlay(Theme.divider)
             quadrantScroll
-            Divider().overlay(Theme.hairline)
-            footer
         }
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.panelBackground))
         .overlay(
@@ -38,6 +35,13 @@ struct PanelBodyView: View {
                 .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.5)
         )
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onChange(of: focusedInput) { _, quadrant in
+            state.focusedInput = quadrant
+            if let quadrant { state.selectedQuadrant = quadrant }
+        }
+        .onChange(of: state.inputFocusRequest) { _, request in
+            if let request { focusedInput = request.quadrant }
+        }
     }
 
     /// 内容区整体纵向滚动；按主内容可用宽度在 2×2 与单列之间切换。
@@ -82,7 +86,11 @@ struct PanelBodyView: View {
                     onToggleExpand: { state.toggleExpanded($0) },
                     onEdit: onEdit,
                     onDelete: onDelete,
-                    onAdd: onAdd,
+                    draft: state.drafts[quadrant] ?? "",
+                    inputProblem: state.inputProblems[quadrant],
+                    inputFocus: $focusedInput,
+                    onDraftChange: { state.updateDraft($0, in: quadrant) },
+                    onSubmitDraft: { state.submitDraft(in: quadrant) },
                     onDrop: { raw, index in onDrop(raw, quadrant, index) },
                     onDragStateChange: { dragging in
                         if dragging { state.isDraggingTask = true }
@@ -140,46 +148,6 @@ struct PanelBodyView: View {
                 }
         )
         .help("拖动标题栏移动面板；移到屏幕边缘后松手可吸附")
-    }
-
-    private var footer: some View {
-        VStack(spacing: 7) {
-            if state.composerOpen {
-                ComposerView(state: state, onSubmit: onSubmitDraft, onCancel: { state.composerOpen = false })
-            }
-            HStack(spacing: 7) {
-                Button {
-                    onAdd(state.selectedQuadrant)
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text("新建任务")
-                            .font(.system(size: 12.5, weight: .medium))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 30)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.accent))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut("n", modifiers: .command)
-                .help("新建任务（⌘N）")
-
-                Button(action: onCollapse) {
-                    Text("收起")
-                        .font(.system(size: 12))
-                        .frame(width: 46, height: 30)
-                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.07)))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
     }
 
     /// 顶栏系统日期，例如「10月6日 · 周二」。

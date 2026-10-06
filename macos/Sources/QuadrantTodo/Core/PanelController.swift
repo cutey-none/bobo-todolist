@@ -327,7 +327,6 @@ final class PanelController: NSObject {
             settings.edge = nearest.0
             state.isPinned = false
             state.isExpanded = false
-            state.composerOpen = false
             state.focusedTaskID = nil
             isApplyingDragSnap = false
             // 松手时鼠标通常仍压在刚出现的 rail 上；若立刻响应悬停，
@@ -417,8 +416,8 @@ final class PanelController: NSObject {
         hoverSince = nil
         if ProcessInfo.processInfo.environment["QT_KEEP_OPEN"] == "1" { outsideSince = nil; return }
         guard !state.isPinned, !state.isDraggingTask else { outsideSince = nil; return }
-        // 输入框有内容时保持展开，避免打断录入。
-        if state.composerOpen || !state.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        // 输入行有内容或正在编辑事项时保持展开，避免打断录入。
+        if state.hasUnsubmittedDraft || state.editing != nil {
             outsideSince = nil
             return
         }

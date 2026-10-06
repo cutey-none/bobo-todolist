@@ -66,10 +66,8 @@ struct RootView: View {
                 withAnimation(.easeOut(duration: 0.15)) { state.editing = task }
             },
             onDelete: { state.delete($0) },
-            onAdd: { state.openComposer(quadrant: $0) },
             onDrop: handleDrop,
             onCollapse: { state.collapse() },
-            onSubmitDraft: { state.submitDraft() },
             onWindowDragBegan: { state.controller?.beginPanelDrag() },
             onWindowDrag: { state.controller?.dragPanel() },
             onWindowDragEnded: { state.controller?.endPanelDrag() }
@@ -239,18 +237,14 @@ struct RootView: View {
                     state.imagePreview = nil
                 } else if state.editing != nil {
                     state.requestEditorClose()
-                } else if state.composerOpen {
-                    state.composerOpen = false
+                } else if let quadrant = state.focusedInput, state.clearDraft(in: quadrant) {
+                    // 输入行的 Esc 只清空未提交草稿并保持焦点。
                 } else {
                     state.collapse()
                 }
                 return nil
-            case 48: // Tab
-                guard !flags.contains(.control) else { return event }
-                state.selectedQuadrant = state.selectedQuadrant.next
-                return nil
             case 49: // Space
-                if editingText || flags.contains(.command) || state.composerOpen { return event }
+                if editingText || flags.contains(.command) || state.focusedInput != nil { return event }
                 guard let task = state.focusedTask(allTasks) else { return event }
                 withAnimation(.easeOut(duration: 0.18)) { state.toggleCompletion(task) }
                 return nil
@@ -273,7 +267,7 @@ struct RootView: View {
             if flags.contains(.command) {
                 switch event.charactersIgnoringModifiers?.lowercased() {
                 case "n":
-                    state.openComposer()
+                    state.focusInput(state.selectedQuadrant)
                     return nil
                 case "z":
                     state.performUndo()

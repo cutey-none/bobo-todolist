@@ -49,11 +49,4 @@ enum Quadrant: String, CaseIterable, Identifiable, Codable {
     static func from(shortcutNumber: Int) -> Quadrant? {
         allCases.first { $0.shortcutNumber == shortcutNumber }
     }
-
-    /// 面板内 Tab 循环切换顺序：左上 → 右上 → 左下 → 右下。
-    var next: Quadrant {
-        let all = Quadrant.allCases
-        let index = all.firstIndex(of: self) ?? 0
-        return all[(index + 1) % all.count]
-    }
 }

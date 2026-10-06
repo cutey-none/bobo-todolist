@@ -12,7 +12,11 @@ struct QuadrantCardView: View {
     let onToggleExpand: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
     let onDelete: (TaskItem) -> Void
-    let onAdd: (Quadrant) -> Void
+    let draft: String
+    let inputProblem: String?
+    var inputFocus: FocusState<Quadrant?>.Binding
+    let onDraftChange: (String) -> Void
+    let onSubmitDraft: () -> Void
     let onDrop: (String, Int?) -> Void
     let onDragStateChange: (Bool) -> Void
 
@@ -51,6 +55,14 @@ struct QuadrantCardView: View {
                     Divider().overlay(Theme.divider)
                 }
             }
+            QuadrantInputRow(
+                quadrant: quadrant,
+                text: draft,
+                problem: inputProblem,
+                focus: inputFocus,
+                onChange: onDraftChange,
+                onSubmit: onSubmitDraft
+            )
             if !completedTasks.isEmpty { completedSection }
         }
         .padding(.horizontal, 20)
@@ -78,16 +90,6 @@ struct QuadrantCardView: View {
             Text("· \(quadrant.hint)")
                 .font(.system(size: 10.5))
                 .foregroundStyle(Theme.secondaryText)
-            Button {
-                onAdd(quadrant)
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(Theme.secondaryText)
-            }
-            .buttonStyle(.plain)
-            .help("在\(quadrant.name)新建任务")
-            .opacity(0.85)
             Spacer(minLength: 4)
             // 只统计未完成事项；已完成数量在折叠入口里单独显示。
             Text("\(activeTasks.count)")
@@ -106,7 +108,8 @@ struct QuadrantCardView: View {
     }
 
     private var completedSection: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 0) {
+            Divider().overlay(Theme.divider).padding(.bottom, 4)
             Button {
                 withAnimation(.easeOut(duration: 0.18)) { doneExpanded.toggle() }
             } label: {
@@ -143,6 +146,6 @@ struct QuadrantCardView: View {
                 }
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 12)
     }
 }
