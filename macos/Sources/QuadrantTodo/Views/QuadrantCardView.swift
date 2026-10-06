@@ -11,7 +11,8 @@ struct QuadrantCardView: View {
     let onToggle: (TaskItem) -> Void
     let onToggleExpand: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
-    let onDelete: (TaskItem) -> Void
+    let onMove: (TaskItem, Quadrant) -> Void
+    let onReorder: (TaskItem, Int) -> Void
     let draft: String
     let inputProblem: String?
     var inputFocus: FocusState<Quadrant?>.Binding
@@ -41,7 +42,8 @@ struct QuadrantCardView: View {
                         onToggle: { withAnimation(.easeOut(duration: 0.18)) { onToggle(task) } },
                         onToggleExpand: { onToggleExpand(task) },
                         onEdit: { onEdit(task) },
-                        onDelete: { onDelete(task) },
+                        onMove: { onMove(task, $0) },
+                        onReorder: { onReorder(task, $0) },
                         onDropBefore: { items in
                             guard let raw = items.first else { return false }
                             onDrop(raw, index)
@@ -139,10 +141,10 @@ struct QuadrantCardView: View {
                         onToggle: { withAnimation(.easeOut(duration: 0.18)) { onToggle(task) } },
                         onToggleExpand: { onToggleExpand(task) },
                         onEdit: { onEdit(task) },
-                        onDelete: { onDelete(task) },
                         onDropBefore: { _ in false },
                         onTargeted: { _ in }
                     )
+                    Divider().overlay(Theme.divider)
                 }
             }
         }

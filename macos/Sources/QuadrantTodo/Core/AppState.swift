@@ -192,8 +192,13 @@ final class AppState: ObservableObject {
         repository.toggleCompletion(task)
     }
 
+    /// 键盘等价的「移至象限」：插入到目标象限顶部，失败时保持原象限与顺序。
     func move(_ task: TaskItem, to quadrant: Quadrant) {
-        repository.move(task, to: quadrant)
+        if !repository.move(task, to: quadrant) { show("移动失败，请重试", isError: true) }
+    }
+
+    func reorder(_ task: TaskItem, by delta: Int) {
+        if !repository.reorder(task, by: delta) { show("移动失败，请重试", isError: true) }
     }
 
     func commitEdit(title: String, note: String?, quadrant: Quadrant) {

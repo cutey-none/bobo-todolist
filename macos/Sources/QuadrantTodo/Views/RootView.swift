@@ -65,7 +65,6 @@ struct RootView: View {
                 state.controller?.focusPanelIfNeeded()
                 withAnimation(.easeOut(duration: 0.15)) { state.editing = task }
             },
-            onDelete: { state.delete($0) },
             onDrop: handleDrop,
             onCollapse: { state.collapse() },
             onWindowDragBegan: { state.controller?.beginPanelDrag() },
@@ -209,9 +208,11 @@ struct RootView: View {
     private func handleDrop(rawID: String, quadrant: Quadrant, index: Int?) {
         defer { state.isDraggingTask = false }
         guard let id = UUID(uuidString: rawID), let task = allTasks.first(where: { $0.id == id }) else { return }
-        withAnimation(.easeOut(duration: 0.2)) {
+        let moved = withAnimation(.easeOut(duration: 0.2)) {
             repository.move(task, to: quadrant, dropIndex: index)
         }
+        // 保存失败时 repository 已恢复原象限与顺序，这里只需提示。
+        if !moved { state.show("移动失败，请重试", isError: true) }
     }
 
     // MARK: - 键盘

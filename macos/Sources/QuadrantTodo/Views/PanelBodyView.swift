@@ -11,7 +11,6 @@ struct PanelBodyView: View {
     let describedTaskIDs: Set<UUID>
     let onToggle: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
-    let onDelete: (TaskItem) -> Void
     let onDrop: (String, Quadrant, Int?) -> Void
     let onCollapse: () -> Void
     let onWindowDragBegan: () -> Void
@@ -85,7 +84,8 @@ struct PanelBodyView: View {
                     onToggle: onToggle,
                     onToggleExpand: { state.toggleExpanded($0) },
                     onEdit: onEdit,
-                    onDelete: onDelete,
+                    onMove: { task, quadrant in withAnimation(.easeOut(duration: 0.2)) { state.move(task, to: quadrant) } },
+                    onReorder: { task, delta in withAnimation(.easeOut(duration: 0.2)) { state.reorder(task, by: delta) } },
                     draft: state.drafts[quadrant] ?? "",
                     inputProblem: state.inputProblems[quadrant],
                     inputFocus: $focusedInput,
