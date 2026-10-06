@@ -31,9 +31,7 @@ struct QuadrantCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().overlay(Theme.divider)
-            if activeTasks.isEmpty {
-                emptyPlaceholder
-            } else {
+            if !activeTasks.isEmpty {
                 ForEach(Array(activeTasks.enumerated()), id: \.element.id) { index, task in
                     TaskRowView(
                         task: task,
@@ -62,6 +60,8 @@ struct QuadrantCardView: View {
             }
             QuadrantInputRow(
                 quadrant: quadrant,
+                // 空象限不再单独显示「暂无待办」，直接由输入行说明。
+                placeholder: activeTasks.isEmpty ? "这个象限还没有待办，直接输入…" : "输入新待办…",
                 text: draft,
                 problem: inputProblem,
                 focus: inputFocus,
@@ -103,13 +103,6 @@ struct QuadrantCardView: View {
                 .monospacedDigit()
         }
         .padding(.bottom, 10)
-    }
-
-    private var emptyPlaceholder: some View {
-        Text("暂无待办")
-            .font(.system(size: 11.5))
-            .foregroundStyle(Theme.secondaryText)
-            .padding(.vertical, 10)
     }
 
     private var completedSection: some View {
