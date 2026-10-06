@@ -44,7 +44,7 @@ final class PersistenceController {
         }
     }
 
-    static func storeURL() -> URL {
+    nonisolated static func storeURL() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
         let folder = base.appendingPathComponent("QuadrantTodo", isDirectory: true)
