@@ -42,6 +42,8 @@
 | 18 | 左 / 右边吸附 | 真实指针分别进入左右边带后拖动松手：左侧 `edge=left, x=−522`，右侧 `edge=right, x=1882`；宽 560 的窗口均只露出 38pt 竖向 rail | `17-right-edge-snapped.png`、`20-left-edge-drag-snapped.png` |
 | 19 | 上 / 下边吸附 | 真实指针分别进入上下边带后拖动松手：顶部窗口 `y=−402`，底部窗口 `y=980`（CoreGraphics 坐标）；均保存对应 edge 并只露出横向 rail | `18-top-edge-snapped.png`、`19-bottom-edge-snapped.png` |
 | 20 | 手动收起浮动窗口 | 浮动态、上次边缘为 bottom 时点击「收起」，实测 `settings.isDocked=1, edge=bottom`，窗口从中间移动到 `x=700 y=980` 并收成横向 rail | `16-floating-free-position.png`、`19-bottom-edge-snapped.png` |
+| 30 | 标题栏拖动跟手 | `QT_UI_SCRIPT` 的 `drag` 命令按固定屏幕轨迹投递 30 步拖动事件。修复前鼠标移动 300pt 窗口只移动约 150pt，且每两步才动一次（抖动）；修复后每步窗口位移与鼠标一致，鼠标拖到 `x=5` 时窗口跟到 `x=−92`，松手吸附左边 | `30-header-drag-reaches-left-edge.png` |
+| 31 | 收起态拖 rail 跟手 | 从左侧 rail（`x=−522`）向右拖 1880pt：第一步直接展开到 `x=10`，之后每步与鼠标同步（不再出现展开动画把窗口拉回），松手 `edge=right` 吸附右边 | `31-rail-drag-reaches-right-edge.png` |
 
 ## 事项描述
 
@@ -89,3 +91,4 @@
 6. **切到左缘后收起位置错误**：macOS 会把负 x 的窗口动画强制约束回屏幕内（左侧收起改用确定性的 `setFrameOrigin`，实测 x=−522，只露出 38pt rail）。
 7. **拖到新边缘后多个动画互相覆盖**：`isDocked / edge / isExpanded` 连续发布时各自触发布局（吸附提交期间暂停中间布局，只执行一次最终布局）。
 8. **松手吸附后立即被悬停重新展开**：鼠标仍压在刚出现的 rail 上，120ms 后会自动展开（现在会等待鼠标先离开 rail，下一次重新悬停才展开）。
+9. **拖动抖动、拖不到屏幕边缘**：`DragGesture` 的 `translation` 以视图坐标计算，窗口移动时视图坐标随之移动，每步位移被抵消一半（改为按事件的屏幕坐标计算位移）；从收起态拖 rail 时展开动画还会在拖动中继续改 frame（拖动期间跳过该动画）。
