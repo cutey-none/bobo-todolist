@@ -55,6 +55,7 @@ enum Metrics {
 
     static let expandDuration: Double = 0.22
     static let hoverExpandDelay: Double = 0.12
-    static let hoverCollapseDelay: Double = 0.35
+    static let hoverCollapseDelay: Double = 1.0
+    static let busyCollapseDelay: Double = 2.5
     static let undoWindow: Double = 8
 }

@@ -428,7 +428,10 @@ final class PanelController: NSObject {
         } else {
             let since = outsideSince ?? Date()
             outsideSince = since
-            if Date().timeIntervalSince(since) >= Metrics.hoverCollapseDelay {
+            // 正在看展开的描述、或有可撤销提示时多等一会儿，手滑出面板不会立刻收起。
+            let busy = state.expandedTaskID != nil || state.notice?.action != nil || !state.pendingCompletionIDs.isEmpty
+            let delay = busy ? Metrics.busyCollapseDelay : Metrics.hoverCollapseDelay
+            if Date().timeIntervalSince(since) >= delay {
                 state.collapse()
                 outsideSince = nil
             }
