@@ -46,19 +46,21 @@ struct PanelBodyView: View {
     /// 内容区整体纵向滚动；按主内容可用宽度在 2×2 与单列之间切换。
     private var quadrantScroll: some View {
         GeometryReader { proxy in
-            let columns = proxy.size.width - Metrics.contentPadding * 2 >= Metrics.matrixBreakpoint ? 2 : 1
+            let available = proxy.size.width - Metrics.contentPadding * 2
+            let columns = available >= Metrics.matrixBreakpoint ? 2 : 1
             ScrollView(.vertical, showsIndicators: true) {
-                matrix(columns: columns)
+                matrix(columns: columns, compact: columns == 2 && available / 2 < Metrics.compactQuadrantWidth)
                     .padding(Metrics.contentPadding)
             }
         }
     }
 
-    private func matrix(columns: Int) -> some View {
+    private func matrix(columns: Int, compact: Bool) -> some View {
         MatrixLayout(columns: columns) {
             ForEach(Array(Quadrant.allCases.enumerated()), id: \.element) { index, quadrant in
                 QuadrantCardView(
                     quadrant: quadrant,
+                    isCompact: compact,
                     activeTasks: activeTasks[quadrant] ?? [],
                     completedTasks: completedTasks[quadrant] ?? [],
                     describedTaskIDs: describedTaskIDs,

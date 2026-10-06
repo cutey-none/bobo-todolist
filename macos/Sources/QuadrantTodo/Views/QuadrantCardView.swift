@@ -3,6 +3,7 @@ import SwiftUI
 /// 单个象限：标题与未完成数、细线分隔的任务行、默认折叠的已完成区（UI PRD 4.1）。
 struct QuadrantCardView: View {
     let quadrant: Quadrant
+    var isCompact = false
     let activeTasks: [TaskItem]
     let completedTasks: [TaskItem]
     let describedTaskIDs: Set<UUID>
@@ -69,9 +70,9 @@ struct QuadrantCardView: View {
             )
             if !completedTasks.isEmpty { completedSection }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
-        .padding(.bottom, 16)
+        .padding(.horizontal, isCompact ? 12 : 20)
+        .padding(.top, isCompact ? 10 : 14)
+        .padding(.bottom, isCompact ? 10 : 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(isTargeted ? Theme.accent.opacity(0.06) : .clear)
         .dropDestination(for: String.self) { items, _ in

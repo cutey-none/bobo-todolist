@@ -92,12 +92,12 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(hotkey.rawValue, forKey: Key.hotkey) }
     }
 
-    /// 面板宽度（pt）。默认 560，可在设置中调整；超出范围会被夹紧。
+    /// 面板宽度（pt）。默认 680，可在设置中调整；超出范围会被夹紧。
     @Published var panelWidth: CGFloat {
         didSet { defaults.set(Double(panelWidth), forKey: Key.panelWidth) }
     }
 
-    /// 面板高度（pt）。默认 470，可在设置中调整；超出范围会被夹紧。
+    /// 面板高度（pt）。默认 560，可在设置中调整；超出范围会被夹紧。
     @Published var panelHeight: CGFloat {
         didSet { defaults.set(Double(panelHeight), forKey: Key.panelHeight) }
     }
@@ -151,7 +151,6 @@ enum PanelSizePreset: String, CaseIterable, Identifiable {
     case compact
     case standard
     case roomy
-    case matrix
 
     var id: String { rawValue }
 
@@ -160,7 +159,6 @@ enum PanelSizePreset: String, CaseIterable, Identifiable {
         case .compact: return "紧凑"
         case .standard: return "默认"
         case .roomy: return "宽松"
-        case .matrix: return "四象限"
         }
     }
 
@@ -168,9 +166,7 @@ enum PanelSizePreset: String, CaseIterable, Identifiable {
         switch self {
         case .compact: return CGSize(width: 420, height: 320)
         case .standard: return CGSize(width: Metrics.defaultPanelWidth, height: Metrics.defaultPanelHeight)
-        case .roomy: return CGSize(width: 720, height: 640)
-        // 主内容宽度超过 900pt，四象限以 2×2 显示。
-        case .matrix: return CGSize(width: 960, height: 680)
+        case .roomy: return CGSize(width: 960, height: 680)
         }
     }
 }
