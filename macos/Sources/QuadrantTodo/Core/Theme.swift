@@ -8,6 +8,7 @@ enum Theme {
 
     static let accent = Color(hex: 0x2F6FEB)
     static let secondaryText = Color.primary.opacity(0.55)
+    static let tertiaryText = Color.primary.opacity(0.4)
     static let hairline = Color.primary.opacity(0.08)
     static let divider = Color.primary.opacity(0.07)
     static let panelBackground = Color(nsColor: .windowBackgroundColor)

@@ -90,6 +90,13 @@ struct QuadrantCardView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
+            // 与贴边条的象限颜色一致，扫一眼就能分辨象限。
+            Circle()
+                .fill(quadrant.color)
+                .frame(width: 7, height: 7)
+                .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+                .padding(.trailing, 2)
+                .accessibilityHidden(true)
             Text(quadrant.name)
                 .font(.system(size: 13, weight: .semibold))
             Text("· \(quadrant.hint)")
@@ -107,7 +114,6 @@ struct QuadrantCardView: View {
 
     private var completedSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Divider().overlay(Theme.divider).padding(.bottom, 4)
             Button {
                 withAnimation(.easeOut(duration: 0.18)) { doneExpanded.toggle() }
             } label: {
@@ -119,8 +125,8 @@ struct QuadrantCardView: View {
                         .font(.system(size: 11))
                     Spacer(minLength: 0)
                 }
-                .foregroundStyle(Theme.secondaryText)
-                .frame(height: 30)
+                .foregroundStyle(Theme.tertiaryText)
+                .frame(height: 28)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -145,6 +151,6 @@ struct QuadrantCardView: View {
                 }
             }
         }
-        .padding(.top, 12)
+        .padding(.top, 4)
     }
 }
