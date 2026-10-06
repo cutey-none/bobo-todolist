@@ -56,7 +56,7 @@ struct SettingsView: View {
                         .font(.system(size: 11))
                         .buttonStyle(.link)
                 }
-                Text("默认 \(Int(Metrics.defaultPanelWidth)) × \(Int(Metrics.defaultPanelHeight)) pt。面板为固定尺寸，内容纵向超出用滚轮滚动，横向超出可左右滚动；任务行悬停可查看完整文本。")
+                Text("默认 \(Int(Metrics.defaultPanelWidth)) × \(Int(Metrics.defaultPanelHeight)) pt。面板为固定尺寸，内容纵向超出用滚轮滚动；宽度约 950 pt 以上时四象限按 2×2 排列，否则纵向排列。")
                     .font(.system(size: 10.5))
                     .foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
