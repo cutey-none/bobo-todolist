@@ -43,6 +43,8 @@ final class AppState: ObservableObject {
     /// 主界面中展开查看描述的事项：同一时刻只展开一个，含已完成区（UI PRD 5.1 建议默认）。
     @Published var expandedTaskID: UUID?
     @Published var isDraggingTask = false
+    /// 正在保存完成状态的事项：保存结束前禁止重复点击（UI PRD 5.2）。
+    @Published private(set) var pendingCompletionIDs: Set<UUID> = []
     /// 请求某个输入行获得焦点（每次自增都会让视图重新获取焦点）。
     @Published private(set) var inputFocusRequest: InputFocusRequest?
 
@@ -188,8 +190,22 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// 先进入 pending，下一轮 runloop 写入本地；只有保存成功才移动到已完成区或恢复未完成。
     func toggleCompletion(_ task: TaskItem) {
-        repository.toggleCompletion(task)
+        guard !pendingCompletionIDs.contains(task.id) else { return }
+        pendingCompletionIDs.insert(task.id)
+        let wasCompleted = task.isCompleted
+        let title = task.title
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let saved = withAnimation(.easeOut(duration: 0.18)) { self.repository.toggleCompletion(task) }
+            self.pendingCompletionIDs.remove(task.id)
+            if saved {
+                self.show(wasCompleted ? "已恢复「\(title)」" : "已完成「\(title)」")
+            } else {
+                self.show("保存失败，「\(title)」保持原状态", isError: true)
+            }
+        }
     }
 
     /// 键盘等价的「移至象限」：插入到目标象限顶部，失败时保持原象限与顺序。

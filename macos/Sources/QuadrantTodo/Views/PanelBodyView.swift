@@ -81,6 +81,7 @@ struct PanelBodyView: View {
                     describedTaskIDs: describedTaskIDs,
                     expandedTaskID: state.expandedTaskID,
                     focusedTaskID: state.focusedTaskID,
+                    pendingTaskIDs: state.pendingCompletionIDs,
                     onToggle: onToggle,
                     onToggleExpand: { state.toggleExpanded($0) },
                     onEdit: onEdit,

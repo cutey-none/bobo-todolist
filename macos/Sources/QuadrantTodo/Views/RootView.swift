@@ -247,7 +247,7 @@ struct RootView: View {
             case 49: // Space
                 if editingText || flags.contains(.command) || state.focusedInput != nil { return event }
                 guard let task = state.focusedTask(allTasks) else { return event }
-                withAnimation(.easeOut(duration: 0.18)) { state.toggleCompletion(task) }
+                state.toggleCompletion(task)
                 return nil
             case 51: // Delete
                 if flags.contains(.command), let task = state.focusedTask(allTasks) {

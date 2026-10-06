@@ -8,6 +8,7 @@ struct QuadrantCardView: View {
     let describedTaskIDs: Set<UUID>
     let expandedTaskID: UUID?
     let focusedTaskID: UUID?
+    let pendingTaskIDs: Set<UUID>
     let onToggle: (TaskItem) -> Void
     let onToggleExpand: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
@@ -37,9 +38,10 @@ struct QuadrantCardView: View {
                         task: task,
                         hasDescription: describedTaskIDs.contains(task.id),
                         isExpanded: expandedTaskID == task.id,
+                        isPending: pendingTaskIDs.contains(task.id),
                         isFocused: focusedTaskID == task.id,
                         isTargeted: targetedTaskID == task.id,
-                        onToggle: { withAnimation(.easeOut(duration: 0.18)) { onToggle(task) } },
+                        onToggle: { onToggle(task) },
                         onToggleExpand: { onToggleExpand(task) },
                         onEdit: { onEdit(task) },
                         onMove: { onMove(task, $0) },
@@ -136,9 +138,10 @@ struct QuadrantCardView: View {
                         task: task,
                         hasDescription: describedTaskIDs.contains(task.id),
                         isExpanded: expandedTaskID == task.id,
+                        isPending: pendingTaskIDs.contains(task.id),
                         isFocused: focusedTaskID == task.id,
                         isTargeted: false,
-                        onToggle: { withAnimation(.easeOut(duration: 0.18)) { onToggle(task) } },
+                        onToggle: { onToggle(task) },
                         onToggleExpand: { onToggleExpand(task) },
                         onEdit: { onEdit(task) },
                         onDropBefore: { _ in false },
