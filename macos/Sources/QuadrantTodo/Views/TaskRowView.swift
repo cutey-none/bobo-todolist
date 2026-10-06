@@ -113,6 +113,8 @@ struct TaskRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // 标题优先占宽度，行空白只拿剩余部分；放不下时才截断。
+        .layoutPriority(1)
         .onHover { titleHovering = $0 }
         .help(tooltipText)
         .accessibilityLabel("编辑：\(task.title)")
