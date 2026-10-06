@@ -217,12 +217,6 @@ final class AppState: ObservableObject {
         if !repository.reorder(task, by: delta) { show("移动失败，请重试", isError: true) }
     }
 
-    func commitEdit(title: String, note: String?, quadrant: Quadrant) {
-        guard let task = editing else { return }
-        repository.update(task, title: title, note: note, quadrant: quadrant)
-        editing = nil
-    }
-
     /// 展开另一事项时自动收起当前事项；再次点击当前事项收起。
     func toggleExpanded(_ task: TaskItem) {
         expandedTaskID = expandedTaskID == task.id ? nil : task.id
