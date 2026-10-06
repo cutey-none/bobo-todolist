@@ -254,7 +254,7 @@ final class PanelController: NSObject {
 
     /// 收起态贴边条由 SwiftUI 手势驱动，使整个窗口跟随鼠标。
     func beginPanelDrag() {
-        // 必须在展开改动窗口位置之前取：事件坐标按当时的窗口位置换算。
+        // 以按下时的屏幕坐标为基准，收起态先展开导致的窗口跳位不计入拖动位移。
         manualDragStartMouse = screenMouseLocation()
         isWindowDragging = true
         if !state.isExpanded {
