@@ -97,7 +97,7 @@ struct TaskRowView: View {
 
     private var tooltipText: String {
         var lines = [task.title]
-        let description = TaskDescription.plainText(TaskDescription.decode(task.note))
+        let description = MarkdownDocument.plainText(task.note ?? "")
         if !description.isEmpty {
             let limit = 120
             lines.append(description.count > limit ? String(description.prefix(limit)) + "…" : description)

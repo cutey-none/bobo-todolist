@@ -1,5 +1,6 @@
 import Foundation
 
+/// 旧版结构化描述块，仅用于把历史数据迁移为 Markdown。
 enum DescriptionBlockKind: String, Codable {
     case paragraph
     case heading
@@ -21,48 +22,59 @@ struct DescriptionBlock: Identifiable, Codable, Equatable {
     }
 }
 
+/// 事项描述以 Markdown 文本保存在 `TaskItem.note`；旧版 JSON 块与纯文本备注都能兼容读取。
 enum TaskDescription {
     private struct Envelope: Codable {
         let version: Int
         let blocks: [DescriptionBlock]
     }
 
-    static func decode(_ note: String?) -> [DescriptionBlock] {
-        guard let note, !note.isEmpty else { return [] }
-        guard let data = note.data(using: .utf8) else {
-            return [DescriptionBlock(kind: .paragraph, text: note)]
-        }
+    /// 旧版 JSON 块描述；Markdown 或纯文本返回 nil。
+    static func legacyBlocks(from note: String?) -> [DescriptionBlock]? {
+        guard let note, note.first == "{" || note.first == "[",
+              let data = note.data(using: .utf8) else { return nil }
         let decoder = JSONDecoder()
-        if let envelope = try? decoder.decode(Envelope.self, from: data) {
-            return envelope.blocks
-        }
-        if let blocks = try? decoder.decode([DescriptionBlock].self, from: data) {
-            return blocks
-        }
-        return [DescriptionBlock(kind: .paragraph, text: note)]
+        if let envelope = try? decoder.decode(Envelope.self, from: data) { return envelope.blocks }
+        return try? decoder.decode([DescriptionBlock].self, from: data)
     }
 
-    static func encode(_ blocks: [DescriptionBlock]) -> String? {
-        let valid = blocks.filter { block in
-            !block.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || block.image != nil
-        }
-        guard !valid.isEmpty else { return nil }
-        let encoder = JSONEncoder()
-        guard let data = try? encoder.encode(Envelope(version: 1, blocks: valid)) else { return nil }
-        return String(data: data, encoding: .utf8)
+    /// 读取任意版本的存储内容并给出 Markdown；旧版图片通过 `saveImage` 落盘为附件。
+    static func markdown(fromStored note: String?, saveImage: (Data) -> String?) -> String {
+        if let blocks = legacyBlocks(from: note) { return markdown(from: blocks, saveImage: saveImage) }
+        return note ?? ""
     }
 
-    static func plainText(_ blocks: [DescriptionBlock]) -> String {
-        blocks.compactMap { block in
-            guard block.kind != .image else { return nil }
+    static func markdown(from blocks: [DescriptionBlock], saveImage: (Data) -> String?) -> String {
+        var output = ""
+        var previous: DescriptionBlockKind?
+        for block in blocks {
             let text = block.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? nil : text
-        }.joined(separator: "\n")
+            let line: String
+            switch block.kind {
+            case .heading:
+                guard !text.isEmpty else { continue }
+                line = "### " + text.replacingOccurrences(of: "\n", with: " ")
+            case .bullet:
+                guard !text.isEmpty else { continue }
+                line = "- " + text.replacingOccurrences(of: "\n", with: " ")
+            case .paragraph:
+                guard !text.isEmpty else { continue }
+                line = text
+            case .image:
+                guard let data = block.image, !data.isEmpty, let source = saveImage(data) else { continue }
+                line = "![图片](\(source))"
+            }
+            // 连续列表项保持紧凑，其余块之间空一行，保证 Markdown 分段正确。
+            if let previous { output += previous == .bullet && block.kind == .bullet ? "\n" : "\n\n" }
+            output += line
+            previous = block.kind
+        }
+        return output
     }
 
-    static func isEmpty(_ blocks: [DescriptionBlock]) -> Bool {
-        blocks.allSatisfy {
-            $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.image == nil
-        }
+    /// 写入前规范化：空白描述保存为 nil。
+    static func normalized(_ markdown: String) -> String? {
+        let trimmed = markdown.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

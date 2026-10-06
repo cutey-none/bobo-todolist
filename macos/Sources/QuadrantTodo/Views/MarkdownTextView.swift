@@ -22,15 +22,17 @@ final class MarkdownEditorController: ObservableObject {
         replace(lineRange, with: replacement, caret: lineRange.location + (replacement as NSString).length - (newline as NSString).length)
     }
 
-    /// 在光标处另起一行插入一段内容（用于图片）。
-    func insertBlock(_ block: String) {
-        guard let textView else { return }
+    /// 在光标处另起一行插入一段内容（用于图片）；编辑器不在屏幕上时返回 false。
+    @discardableResult
+    func insertBlock(_ block: String) -> Bool {
+        guard let textView else { return false }
         let text = textView.string as NSString
         let location = textView.selectedRange().location
         let needsBreak = location > 0 && text.character(at: location - 1) != 10
         let insertion = (needsBreak ? "\n" : "") + block + "\n"
         replace(NSRange(location: location, length: textView.selectedRange().length), with: insertion,
                 caret: location + (insertion as NSString).length)
+        return true
     }
 
     func focus() {

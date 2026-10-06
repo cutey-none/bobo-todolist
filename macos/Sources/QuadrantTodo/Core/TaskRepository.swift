@@ -4,6 +4,7 @@ import SwiftData
 /// 任务读写入口，集中实现 PRD 4.2 的排序规则与写入时机（立即保存）。
 struct TaskRepository {
     let context: ModelContext
+    var attachments: AttachmentStore = .shared
 
     func allTasks() -> [TaskItem] {
         let descriptor = FetchDescriptor<TaskItem>()
@@ -60,19 +61,32 @@ struct TaskRepository {
         save()
     }
 
-    func descriptionBlocks(for task: TaskItem) -> [DescriptionBlock] {
-        TaskDescription.decode(task.note)
+    /// 事项描述的 Markdown 文本；旧版结构化描述会即时转换。
+    func description(for task: TaskItem) -> String {
+        TaskDescription.markdown(fromStored: task.note, saveImage: attachments.save)
     }
 
-    func saveDescription(_ blocks: [DescriptionBlock], for task: TaskItem) {
-        task.note = TaskDescription.encode(blocks)
+    func saveDescription(_ markdown: String, for task: TaskItem) {
+        task.note = TaskDescription.normalized(markdown)
         task.updatedAt = Date()
         save()
     }
 
+    /// 启动时把旧版 JSON 块描述一次性改写为 Markdown，图片转存为附件文件。
+    func migrateLegacyDescriptionsToMarkdown(from tasks: [TaskItem]) {
+        var migrated = false
+        for task in tasks {
+            guard let blocks = TaskDescription.legacyBlocks(from: task.note) else { continue }
+            task.note = TaskDescription.normalized(TaskDescription.markdown(from: blocks, saveImage: attachments.save))
+            task.updatedAt = Date()
+            migrated = true
+        }
+        if migrated { save() }
+    }
+
     func describedTaskIDs(from tasks: [TaskItem]) -> Set<UUID> {
         Set(tasks.compactMap { task in
-            // `TaskDescription.encode` stores nil for empty content, so presence can be
+            // `TaskDescription.normalized` stores nil for empty content, so presence can be
             // checked without repeatedly decoding embedded image data during list renders.
             guard let note = task.note?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !note.isEmpty else { return nil }
@@ -85,16 +99,15 @@ struct TaskRepository {
         for task in tasks {
             let entries = progress(for: task.id).sorted { $0.createdAt < $1.createdAt }
             guard !entries.isEmpty else { continue }
-            var blocks = descriptionBlocks(for: task)
+            var parts = [description(for: task).trimmingCharacters(in: .whitespacesAndNewlines)]
             for entry in entries {
-                let text = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !text.isEmpty { blocks.append(DescriptionBlock(kind: .paragraph, text: text)) }
-                if let image = entry.imageData, !image.isEmpty {
-                    blocks.append(DescriptionBlock(kind: .image, image: image))
+                parts.append(entry.text.trimmingCharacters(in: .whitespacesAndNewlines))
+                if let image = entry.imageData, !image.isEmpty, let source = attachments.save(image) {
+                    parts.append("![图片](\(source))")
                 }
                 context.delete(entry)
             }
-            task.note = TaskDescription.encode(blocks)
+            task.note = TaskDescription.normalized(parts.filter { !$0.isEmpty }.joined(separator: "\n\n"))
             task.updatedAt = Date()
             migrated = true
         }

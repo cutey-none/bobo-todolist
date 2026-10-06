@@ -3,6 +3,12 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct EditOverlayView: View {
+    private enum Mode: String, CaseIterable, Identifiable {
+        case edit = "编辑"
+        case preview = "预览"
+        var id: String { rawValue }
+    }
+
     let task: TaskItem
     let repository: TaskRepository
     @ObservedObject var state: AppState
@@ -11,22 +17,21 @@ struct EditOverlayView: View {
 
     @State private var title: String
     @State private var quadrant: Quadrant
-    @State private var blocks: [DescriptionBlock]
+    @State private var markdown: String
+    @State private var mode: Mode = .edit
     @State private var importing = false
     @State private var message: String?
-    @State private var hovered: UUID?
     @State private var saving = false
     @State private var saveTask: Task<Void, Never>?
     @State private var skipDisappearSave = false
     @State private var appeared = false
-    @FocusState private var titleFocused: Bool
-    @FocusState private var focusedBlock: UUID?
+    @StateObject private var editor = MarkdownEditorController()
 
     // These snapshots must live in SwiftUI state. Plain stored properties are rebuilt
     // whenever the view is re-rendered, which would make Cancel capture autosaved edits.
     @State private var originalTitle: String
     @State private var originalQuadrant: Quadrant
-    @State private var originalBlocks: [DescriptionBlock]
+    @State private var originalMarkdown: String
 
     init(task: TaskItem, repository: TaskRepository, state: AppState, preview: Binding<Data?>, onClose: @escaping () -> Void) {
         self.task = task
@@ -34,13 +39,13 @@ struct EditOverlayView: View {
         self.state = state
         _preview = preview
         self.onClose = onClose
-        let initial = repository.descriptionBlocks(for: task)
+        let initial = repository.description(for: task)
         _title = State(initialValue: task.title)
         _quadrant = State(initialValue: task.quadrant)
-        _blocks = State(initialValue: initial)
+        _markdown = State(initialValue: initial)
         _originalTitle = State(initialValue: task.title)
         _originalQuadrant = State(initialValue: task.quadrant)
-        _originalBlocks = State(initialValue: initial)
+        _originalMarkdown = State(initialValue: initial)
     }
 
     var body: some View {
@@ -63,14 +68,13 @@ struct EditOverlayView: View {
         }
         .transition(.opacity)
         .fileImporter(isPresented: $importing, allowedContentTypes: [.image], allowsMultipleSelection: false, onCompletion: importImage)
-        .onPasteCommand(of: [.image]) { _ in pasteImage() }
         .alert("提示", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
             Button("好") { message = nil }
         } message: { Text(message ?? "") }
         .onAppear(perform: initialFocus)
         .onChange(of: title) { _, _ in scheduleSave() }
         .onChange(of: quadrant) { _, _ in scheduleSave() }
-        .onChange(of: blocks) { _, _ in scheduleSave() }
+        .onChange(of: markdown) { _, _ in scheduleSave() }
         .onChange(of: state.editorCloseRequest) { _, _ in closeSaving() }
         .onDisappear {
             saveTask?.cancel()
@@ -82,7 +86,7 @@ struct EditOverlayView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack {
-                Text("事项详情").font(.system(size: 13, weight: .semibold))
+                Text("编辑事项").font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Button { closeSaving() } label: {
                     Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryText)
@@ -90,8 +94,8 @@ struct EditOverlayView: View {
                 }.buttonStyle(.plain)
             }
             TextField("事项名称", text: $title)
-                .textFieldStyle(.plain).font(.system(size: 20, weight: .bold)).focused($titleFocused)
-                .onSubmit { focusedBlock = blocks.last(where: { $0.kind != .image })?.id }
+                .textFieldStyle(.plain).font(.system(size: 20, weight: .bold))
+                .onSubmit { mode = .edit; DispatchQueue.main.async { editor.focus() } }
             Menu {
                 ForEach(Quadrant.allCases) { item in Button(item.name) { quadrant = item } }
             } label: {
@@ -111,8 +115,14 @@ struct EditOverlayView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("事项描述").font(.system(size: 13, weight: .semibold))
+                Text("Markdown").font(.system(size: 10, weight: .medium)).foregroundStyle(Theme.secondaryText)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
                 Spacer()
-                Text("记录关键信息，随时修改").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+                Picker("", selection: $mode) {
+                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden().fixedSize()
             }
             editorCard
         }.padding(.horizontal, 20).padding(.vertical, 18)
@@ -120,20 +130,27 @@ struct EditOverlayView: View {
 
     private var editorCard: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    if blocks.isEmpty {
-                        Button {
-                            let block = DescriptionBlock(kind: .paragraph)
-                            blocks.append(block)
-                            DispatchQueue.main.async { focusedBlock = block.id }
-                        } label: {
-                            Text("记点什么…").font(.system(size: 12.5)).foregroundStyle(Theme.secondaryText)
-                                .frame(maxWidth: .infinity, minHeight: 32, alignment: .topLeading).contentShape(Rectangle())
-                        }.buttonStyle(.plain)
-                    } else { ForEach(blocks) { block in blockRow(block) } }
-                }.padding(16)
-            }.frame(minHeight: 200)
+            Group {
+                switch mode {
+                case .edit:
+                    MarkdownTextView(text: $markdown, controller: editor,
+                                     placeholder: "用 Markdown 记录：### 小标题、- 列表、粘贴图片…",
+                                     onPasteImage: pasteImage)
+                case .preview:
+                    ScrollView {
+                        if TaskDescription.normalized(markdown) == nil {
+                            Text("暂无描述").font(.system(size: 12.5)).foregroundStyle(Theme.secondaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            MarkdownView(markdown: markdown, attachments: repository.attachments) { source in
+                                preview = repository.attachments.data(for: source)
+                            }
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+            .frame(minHeight: 160, maxHeight: .infinity)
             Divider().overlay(Theme.hairline)
             toolbar.padding(.horizontal, 12).frame(height: 44)
         }
@@ -142,44 +159,23 @@ struct EditOverlayView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    @ViewBuilder private func blockRow(_ block: DescriptionBlock) -> some View {
-        HStack(alignment: block.kind == .bullet ? .firstTextBaseline : .top, spacing: 7) {
-            if block.kind == .bullet { Text("•").font(.system(size: 12.5)).foregroundStyle(Theme.secondaryText).padding(.leading, 6) }
-            if block.kind == .image, let data = block.image, let image = ImageAttachment.image(from: data) {
-                Button { preview = data } label: {
-                    Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: 200).clipShape(RoundedRectangle(cornerRadius: 8))
-                }.buttonStyle(.plain).help("查看大图")
-            } else {
-                TextField("", text: textBinding(block.id), axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(block.kind == .heading ? .system(size: 15, weight: .semibold) : .system(size: 12.5))
-                    .focused($focusedBlock, equals: block.id).onSubmit { insertBlock(after: block.id) }
-            }
-            Spacer(minLength: 0)
-            if hovered == block.id {
-                Button { removeBlock(block.id) } label: {
-                    Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.secondaryText).frame(width: 18, height: 18)
-                }.buttonStyle(.plain)
-            }
-        }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-            .onTapGesture { if block.kind != .image { focusedBlock = block.id } }
-            .onHover { hovered = $0 ? block.id : nil }
-    }
-
     private var toolbar: some View {
         HStack(spacing: 4) {
-            typeButton("正文", .paragraph); typeButton("标题", .heading); typeButton("列表", .bullet)
+            toolButton("正文", help: "当前行改为正文") { editor.setLinePrefix(nil) }
+            toolButton("标题", help: "当前行设为小标题（### ）") { editor.setLinePrefix("### ") }
+            toolButton("列表", help: "当前行设为列表项（- ）") { editor.setLinePrefix("- ") }
             Rectangle().fill(Theme.hairline).frame(width: 1, height: 14).padding(.horizontal, 5)
-            Button("图片", action: addImage).buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(Theme.secondaryText).padding(8)
+            toolButton("图片", help: "插入图片，也可直接粘贴", action: addImage)
             Spacer()
         }
+        .disabled(mode == .preview)
+        .opacity(mode == .preview ? 0.45 : 1)
     }
 
-    private func typeButton(_ label: String, _ kind: DescriptionBlockKind) -> some View {
-        let selected = focusedBlock.flatMap { id in blocks.first(where: { $0.id == id })?.kind } == kind
-        return Button(label) { changeType(kind) }.buttonStyle(.plain).font(.system(size: 11.5))
-            .foregroundStyle(selected ? Theme.accent : Theme.secondaryText).padding(.horizontal, 8).padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Theme.accent.opacity(0.14) : .clear))
+    private func toolButton(_ label: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(label, action: action).buttonStyle(.plain).font(.system(size: 11.5))
+            .foregroundStyle(Theme.secondaryText).padding(.horizontal, 8).padding(.vertical, 5)
+            .contentShape(Rectangle()).help(help)
     }
 
     private var footer: some View {
@@ -196,51 +192,32 @@ struct EditOverlayView: View {
         }.padding(.horizontal, 20).padding(.vertical, 16)
     }
 
-    private func textBinding(_ id: UUID) -> Binding<String> {
-        Binding(get: { blocks.first(where: { $0.id == id })?.text ?? "" }, set: { value in
-            if let index = blocks.firstIndex(where: { $0.id == id }) { blocks[index].text = value }
-        })
-    }
-
-    private func changeType(_ kind: DescriptionBlockKind) {
-        if let id = focusedBlock, let i = blocks.firstIndex(where: { $0.id == id }), blocks[i].kind != .image { blocks[i].kind = kind }
-        else { let b = DescriptionBlock(kind: kind); blocks.append(b); DispatchQueue.main.async { focusedBlock = b.id } }
-    }
-
-    private func insertBlock(after id: UUID) {
-        guard let i = blocks.firstIndex(where: { $0.id == id }) else { return }
-        let current = blocks[i]
-        let kind: DescriptionBlockKind
-        if current.kind == .bullet && current.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { blocks.remove(at: i); kind = .paragraph }
-        else { kind = current.kind == .bullet ? .bullet : .paragraph }
-        let b = DescriptionBlock(kind: kind); blocks.insert(b, at: min(i + 1, blocks.count)); DispatchQueue.main.async { focusedBlock = b.id }
-    }
-
-    private func removeBlock(_ id: UUID) {
-        guard let i = blocks.firstIndex(where: { $0.id == id }) else { return }
-        blocks.remove(at: i); focusedBlock = blocks.indices.contains(i) ? blocks[i].id : blocks.last?.id
-    }
-
     private func addImage() { guard imageCount < 6 else { message = "一个事项最多 6 张图片"; return }; importing = true }
     private func importImage(_ result: Result<[URL], Error>) {
         guard imageCount < 6 else { message = "一个事项最多 6 张图片"; return }
         guard case .success(let urls) = result, let url = urls.first else { if case .failure = result { message = "无法读取这张图片，请选择其他图片。" }; return }
         let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
         guard let data = ImageAttachment.normalizedData(from: url) else { message = "无法读取这张图片，请选择其他图片。"; return }
-        blocks.append(DescriptionBlock(kind: .image, image: data))
+        insertImage(data)
     }
-    private func pasteImage() {
-        guard let image = NSImage(pasteboard: .general) else { return }
+    private func pasteImage(_ image: NSImage) {
         guard imageCount < 6 else { message = "一个事项最多 6 张图片"; return }
         guard let data = ImageAttachment.normalizedData(from: image) else { message = "无法读取这张图片，请选择其他图片。"; return }
-        blocks.append(DescriptionBlock(kind: .image, image: data))
+        insertImage(data)
     }
-    private var imageCount: Int { blocks.filter { $0.kind == .image && $0.image != nil }.count }
+    private func insertImage(_ data: Data) {
+        guard let source = repository.attachments.save(data) else { message = "图片保存失败，请重试。"; return }
+        let line = "![图片](\(source))"
+        if !editor.insertBlock(line) {
+            markdown += (markdown.isEmpty || markdown.hasSuffix("\n") ? "" : "\n") + line + "\n"
+        }
+    }
+    private var imageCount: Int { MarkdownDocument.imageSources(in: markdown).count }
     private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private func initialFocus() {
         appeared = true
-        DispatchQueue.main.async { if let id = blocks.last(where: { $0.kind != .image })?.id { focusedBlock = id } else { titleFocused = true } }
+        DispatchQueue.main.async { editor.focus() }
     }
     private func scheduleSave() {
         guard appeared else { return }; saveTask?.cancel(); saving = true
@@ -248,12 +225,12 @@ struct EditOverlayView: View {
     }
     private func flushSave() {
         saveTask?.cancel(); guard !trimmedTitle.isEmpty else { saving = false; return }
-        repository.update(task, title: trimmedTitle, note: task.note, quadrant: quadrant); repository.saveDescription(blocks, for: task); saving = false
+        repository.update(task, title: trimmedTitle, note: task.note, quadrant: quadrant); repository.saveDescription(markdown, for: task); saving = false
     }
     private func closeSaving() { guard !trimmedTitle.isEmpty else { return }; flushSave(); onClose() }
     private func cancel() {
         saveTask?.cancel(); skipDisappearSave = true
-        repository.update(task, title: originalTitle, note: task.note, quadrant: originalQuadrant); repository.saveDescription(originalBlocks, for: task); onClose()
+        repository.update(task, title: originalTitle, note: task.note, quadrant: originalQuadrant); repository.saveDescription(originalMarkdown, for: task); onClose()
     }
     private func imagePreview(_ image: NSImage) -> some View {
         ZStack(alignment: .topTrailing) {

@@ -45,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // that undo is no longer possible, so reclaim any orphaned text/images now.
         persistence.repository.purgeOrphanProgress()
         persistence.repository.migrateLegacyProgressToDescriptions(from: persistence.repository.allTasks())
+        persistence.repository.migrateLegacyDescriptionsToMarkdown(from: persistence.repository.allTasks())
 
         statusItem = StatusItemController(
             state: appState,
