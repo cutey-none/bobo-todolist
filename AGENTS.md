@@ -8,6 +8,7 @@
 - Before every commit, inspect `git status`, `git diff --check`, and the staged diff. Preserve existing user changes and never include unrelated or generated files accidentally.
 - Separate implementation, tests, documentation, and verification artifacts when that makes the history easier to review or revert.
 - For user-facing UI changes, save real runtime verification screenshots under `docs/verify/` and document what each screenshot proves.
+- After finishing any code change, always rebuild the app yourself with `macos/build.sh` so `macos/build/QuadrantTodo.app` is up to date; never ask the user to rebuild. Report the build result (and any failure output) in the final reply.
 
 ## Task description product constraints
 
