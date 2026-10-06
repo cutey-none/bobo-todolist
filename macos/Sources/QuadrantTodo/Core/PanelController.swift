@@ -88,7 +88,9 @@ final class PanelController: NSObject {
             .dropFirst()
             .sink { [weak self] expanded in
                 guard let self else { return }
-                guard !self.isApplyingDragSnap else { return }
+                // 拖动开始时由 beginPanelDrag 无动画展开；这里的展开动画
+                // 会在拖动中继续改 frame，与跟手移动互相抢位置。
+                guard !self.isApplyingDragSnap, !self.isWindowDragging else { return }
                 // 自由浮动窗口没有可收进的屏幕边缘。用户主动点「收起」时，
                 // 先回到上一次选择的边缘，再收成 rail，避免在屏幕中央留下
                 // 一个只有小 rail、却占着整块透明窗口的区域。
@@ -254,12 +256,12 @@ final class PanelController: NSObject {
     func beginPanelDrag() {
         // 必须在展开改动窗口位置之前取：事件坐标按当时的窗口位置换算。
         manualDragStartMouse = screenMouseLocation()
+        isWindowDragging = true
         if !state.isExpanded {
             state.expand()
             // 贴边条开始拖动时先成为完整面板，避免带着屏外的大片隐藏区移动。
             applyLayout(expanded: true, animated: false)
         }
-        isWindowDragging = true
         manualDragStartOrigin = panel.frame.origin
         hoverSince = nil
         outsideSince = nil
