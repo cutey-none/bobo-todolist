@@ -20,7 +20,7 @@ struct EditOverlayView: View {
     @State private var title: String
     @State private var quadrant: Quadrant
     @State private var markdown: String
-    @State private var mode: Mode = .edit
+    @State private var mode: Mode
     @State private var importing = false
     @State private var message: String?
     @State private var titleProblem: String?
@@ -46,6 +46,8 @@ struct EditOverlayView: View {
         _title = State(initialValue: task.title)
         _quadrant = State(initialValue: task.quadrant)
         _markdown = State(initialValue: initial)
+        // 大多数时候是来看描述的：有描述时先预览，单击正文再进入编辑。
+        _mode = State(initialValue: TaskDescription.normalized(initial) == nil ? .edit : .preview)
         _originalTitle = State(initialValue: task.title)
         _originalQuadrant = State(initialValue: task.quadrant)
         _originalMarkdown = State(initialValue: initial)
@@ -177,10 +179,12 @@ struct EditOverlayView: View {
                     MarkdownView(markdown: markdown, attachments: repository.attachments) { source in
                         preview = repository.attachments.data(for: source)
                     }
-                    .textSelection(.enabled)
                 }
             }
             .padding(16)
+            .contentShape(Rectangle())
+            // 单击正文进入编辑；图片自身是按钮，点它仍是查看大图。
+            .onTapGesture { startEditing() }
         }
     }
 
@@ -192,13 +196,28 @@ struct EditOverlayView: View {
             Rectangle().fill(Theme.hairline).frame(width: 1, height: 14).padding(.horizontal, 5)
             toolButton("图片", help: "插入图片，也可直接粘贴", action: addImage)
             Spacer()
+            if mode == .preview {
+                Text("单击正文开始编辑").font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
+            }
         }
-        .disabled(mode == .preview)
-        .opacity(mode == .preview ? 0.45 : 1)
+    }
+
+    private func startEditing() {
+        mode = .edit
+        DispatchQueue.main.async { editor.focus() }
     }
 
     private func toolButton(_ label: String, help: String, action: @escaping () -> Void) -> some View {
-        Button(label, action: action).buttonStyle(.plain).font(.system(size: 11.5))
+        // 预览时点工具栏先切回编辑，再作用到编辑器。
+        Button(label) {
+            if mode == .preview {
+                startEditing()
+                // 等编辑器视图创建并拿到焦点后再执行。
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { action() }
+            } else {
+                action()
+            }
+        }.buttonStyle(.plain).font(.system(size: 11.5))
             .foregroundStyle(Theme.secondaryText).padding(.horizontal, 8).padding(.vertical, 5)
             .contentShape(Rectangle()).help(help)
     }
