@@ -42,6 +42,8 @@ struct RootView: View {
         }
         .frame(width: settings.panelWidth, height: settings.panelHeight)
         .overlay(alignment: .bottom) { undoToast }
+        .overlay(alignment: .top) { noticeBanner }
+        .animation(.easeOut(duration: 0.18), value: state.notice)
         .overlay { editOverlay }
         .onAppear(perform: installEventMonitor)
         .onDisappear { removeEventMonitor() }
@@ -83,6 +85,12 @@ struct RootView: View {
                 Text("已删除「\(undo.title)」")
                     .font(.system(size: 11))
                     .lineLimit(1)
+                if state.undoQueue.count > 1 {
+                    Text("另有 \(state.undoQueue.count - 1) 项可撤销")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.secondaryText)
+                        .fixedSize()
+                }
                 Spacer(minLength: 4)
                 Button("撤销") { state.performUndo() }
                     .buttonStyle(.plain)
@@ -100,6 +108,25 @@ struct RootView: View {
             .padding(.bottom, 58)
             .padding(.horizontal, 34)
             .transition(.opacity.combined(with: .move(edge: .bottom)))
+        }
+    }
+
+    /// 完成、恢复、新建等操作的短暂反馈；失败时显示为错误样式。
+    @ViewBuilder
+    private var noticeBanner: some View {
+        if let notice = state.notice, state.isExpanded {
+            Label(notice.text, systemImage: notice.isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(notice.isError ? Theme.red : .primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(.regularMaterial).shadow(color: .black.opacity(0.15), radius: 8, y: 3))
+                .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
+                .padding(.top, 16)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .allowsHitTesting(false)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.updatesFrequently)
         }
     }
 

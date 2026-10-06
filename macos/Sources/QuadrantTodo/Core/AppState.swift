@@ -8,6 +8,13 @@ struct UndoEntry: Identifiable {
     let title: String
 }
 
+/// 短暂、非阻塞的操作反馈；失败提示停留更久。
+struct Notice: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+    let isError: Bool
+}
+
 /// 界面层共享状态：面板开合、草稿、输入焦点、撤销等。
 @MainActor
 final class AppState: ObservableObject {
@@ -19,7 +26,9 @@ final class AppState: ObservableObject {
     @Published var editing: TaskItem?
     @Published var imagePreview: Data?
     @Published var editorCloseRequest = 0
-    @Published var undo: UndoEntry?
+    /// 可逐项撤销的删除队列，末尾是最新删除的事项。
+    @Published private(set) var undoQueue: [UndoEntry] = []
+    @Published private(set) var notice: Notice?
     @Published var focusedTaskID: UUID?
     /// 主界面中展开查看描述的事项（单击切换，双击进入编辑）。
     @Published var expandedTaskIDs: Set<UUID> = []
@@ -29,7 +38,6 @@ final class AppState: ObservableObject {
 
     weak var controller: PanelController?
 
-    private var undoTimer: Timer?
     private let persistence: PersistenceController
     let settings: SettingsStore
 
@@ -94,26 +102,49 @@ final class AppState: ObservableObject {
         focusRequest += 1
     }
 
-    func delete(_ task: TaskItem) {
-        // Replacing the single undo slot ends the previous deletion's grace period.
-        if undo != nil { repository.purgeOrphanProgress() }
-        guard let snapshot = repository.delete(task) else { return }
-        undo = UndoEntry(snapshot: snapshot, title: task.title)
-        undoTimer?.invalidate()
-        undoTimer = Timer.scheduledTimer(withTimeInterval: Metrics.undoWindow, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                self?.undo = nil
-                self?.repository.purgeOrphanProgress()
-            }
+    /// 最新一次可撤销的删除。
+    var undo: UndoEntry? { undoQueue.last }
+
+    @discardableResult
+    func delete(_ task: TaskItem) -> Bool {
+        let title = task.title
+        let id = task.id
+        guard let snapshot = repository.delete(task) else {
+            show("删除失败，请重试", isError: true)
+            return false
         }
-        if focusedTaskID == task.id { focusedTaskID = nil }
+        let entry = UndoEntry(snapshot: snapshot, title: title)
+        undoQueue.append(entry)
+        // 每项删除有各自的撤销窗口，撤销一项不影响其他项的剩余时间。
+        DispatchQueue.main.asyncAfter(deadline: .now() + Metrics.undoWindow) { [weak self] in
+            self?.expireUndo(entry.id)
+        }
+        if focusedTaskID == id { focusedTaskID = nil }
+        expandedTaskIDs.remove(id)
+        return true
     }
 
     func performUndo() {
-        guard let entry = undo else { return }
-        repository.restore(entry.snapshot)
-        undo = nil
-        undoTimer?.invalidate()
+        guard let entry = undoQueue.last else { return }
+        guard repository.restore(entry.snapshot) else {
+            show("撤销失败，请重试", isError: true)
+            return
+        }
+        undoQueue.removeAll { $0.id == entry.id }
+    }
+
+    private func expireUndo(_ id: UUID) {
+        undoQueue.removeAll { $0.id == id }
+        // 所有撤销窗口都结束后，旧 progress 记录才不再需要保留。
+        if undoQueue.isEmpty { repository.purgeOrphanProgress() }
+    }
+
+    func show(_ text: String, isError: Bool = false) {
+        let notice = Notice(text: text, isError: isError)
+        self.notice = notice
+        DispatchQueue.main.asyncAfter(deadline: .now() + (isError ? 4 : 1.6)) { [weak self] in
+            if self?.notice?.id == notice.id { self?.notice = nil }
+        }
     }
 
     func toggleCompletion(_ task: TaskItem) {
