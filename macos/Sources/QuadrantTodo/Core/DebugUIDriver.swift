@@ -5,7 +5,7 @@ import AppKit
 ///
 /// 脚本每行一条命令，坐标为面板内容区左上角起的点坐标：
 /// `click x y` · `doubleclick x y` · `drag x y dx dy`（从 x y 按住拖动 dx dy 屏幕点） ·
-/// `type 文本`（`\n` 表示换行） · `key esc|return` · `wait 毫秒` ·
+/// `size 宽 高`（修改面板尺寸） · `type 文本`（`\n` 表示换行） · `key esc|return` · `wait 毫秒` ·
 /// `shot 名称`（写出 `名称.req`，等外部截图后删除该文件再继续）。
 @MainActor
 final class DebugUIDriver {
@@ -51,6 +51,11 @@ final class DebugUIDriver {
             let numbers = argument.split(separator: " ").compactMap { Double($0) }
             guard numbers.count == 4 else { return next() }
             drag(from: NSPoint(x: numbers[0], y: numbers[1]), by: CGSize(width: numbers[2], height: numbers[3]))
+        case "size":
+            let numbers = argument.split(separator: " ").compactMap { Double($0) }
+            guard numbers.count == 2 else { return next() }
+            SettingsStore.shared.setPanelSize(width: numbers[0], height: numbers[1])
+            next(after: 0.6)
         case "type":
             window.makeKey()
             (window.firstResponder as? NSTextView)?.insertText(argument.replacingOccurrences(of: "\\n", with: "\n"),
