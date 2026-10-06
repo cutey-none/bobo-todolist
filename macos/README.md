@@ -23,6 +23,7 @@ open /Applications/QuadrantTodo.app
 
 - `QT_START_EXPANDED=1` 启动即展开面板
 - `QT_KEEP_OPEN=1` 关闭「鼠标移出自动收起」
+- `QT_DATA_DIR=/某个目录` 使用独立的数据目录（数据库与图片附件），不影响真实数据
 
 ## 功能对照 PRD
 

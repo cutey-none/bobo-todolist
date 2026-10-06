@@ -44,10 +44,12 @@ final class PersistenceController {
         }
     }
 
+    /// 开发时可用 `QT_DATA_DIR` 指向独立数据目录，避免验证改动真实数据。
     nonisolated static func storeURL() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
-        let folder = base.appendingPathComponent("QuadrantTodo", isDirectory: true)
+        let folder = ProcessInfo.processInfo.environment["QT_DATA_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? base.appendingPathComponent("QuadrantTodo", isDirectory: true)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder.appendingPathComponent("Tasks.store")
     }
