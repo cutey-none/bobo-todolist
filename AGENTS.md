@@ -12,6 +12,7 @@
 ## Task description product constraints
 
 - A todo item opens as one detail page: the item title is the page-level heading and the content beneath it is an editable description.
-- The description may contain small headings, body text, ordinary bullet lists, and images.
+- The description is stored as Markdown and may contain small headings, body text, ordinary bullet lists, and images (local attachment files referenced from the Markdown).
+- In the main panel, a single click on a todo expands it in place to view the rendered description; a double click opens the edit popup.
 - Do not turn description content into subtasks, checklists, progress entries, or an activity timeline unless the user explicitly changes the product direction.
 - Description content must persist locally, survive relaunch, and preserve compatible legacy notes/progress data during migration.

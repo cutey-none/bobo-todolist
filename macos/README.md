@@ -24,6 +24,7 @@ open /Applications/QuadrantTodo.app
 - `QT_START_EXPANDED=1` 启动即展开面板
 - `QT_KEEP_OPEN=1` 关闭「鼠标移出自动收起」
 - `QT_DATA_DIR=/某个目录` 使用独立的数据目录（数据库与图片附件），不影响真实数据
+- `QT_UI_SCRIPT=脚本 QT_UI_DIR=目录`（仅 debug 构建）按脚本向面板投递真实点击 / 输入事件，用于无辅助功能权限时的界面验证，命令说明见 `DebugUIDriver.swift`
 
 ## 功能对照 PRD
 
@@ -35,7 +36,7 @@ open /Applications/QuadrantTodo.app
 | F4 任务管理 | 新建（标题必填 + 象限）、编辑、删除（5 秒撤销）、完成 / 取消完成、跨象限与象限内拖拽排序 |
 | F5 快速添加 | 全局快捷键展开并聚焦输入框；`!1`–`!4` 前缀或色块指定象限；回车创建并保持聚焦；`Esc` 取消 |
 | F6 本地持久化 | SwiftData（SQLite）落在 `~/Library/Application Support/QuadrantTodo/Tasks.store` |
-| F7 事项描述 | 单击任务进入详情；正文块支持小标题、普通文本、项目符号列表与图片；自动保存并可取消本次编辑 |
+| F7 事项描述 | 描述以 **Markdown** 保存；**单击**任务在主界面原地展开查看渲染后的描述，再次单击收起；**双击**弹出编辑框修改标题、象限与 Markdown 源码（编辑 / 预览切换，工具栏可把当前行设为正文 / 小标题 / 列表，可插入或粘贴图片）；自动保存并可取消本次编辑 |
 
 面板内快捷键：`⌘N` 新建 · `Tab` 切换象限 · `↑ ↓` 选中任务 · `Space` 完成 · `⌘⌫` 删除 · `⌘Z` 撤销 · `Esc` 收起。
 
@@ -64,7 +65,9 @@ macos/
   Sources/QuadrantTodo/
     App.swift                  应用入口、菜单栏与依赖装配
     Core/                      模型、仓储、设置、窗口控制器、全局快捷键
-      TaskDescription.swift    事项描述块的编码、解码与兼容逻辑
+      MarkdownDocument.swift   事项描述 Markdown 的块解析
+      TaskDescription.swift    旧版 JSON 描述块到 Markdown 的迁移
+      AttachmentStore.swift    描述图片附件的保存与读取
       ProgressEntry.swift      旧进度数据模型，仅用于启动迁移与兼容
       ImageAttachment.swift    图片压缩与规范化
     Views/                     贴边条、面板、象限卡片、任务行、编辑浮层、设置
@@ -74,8 +77,10 @@ macos/
 
 ## 已知限制（v0.1）
 
-- 每个事项描述最多 6 张图片，最长边压缩到 1600px；描述与图片只保存在本机，不支持云同步。
-- 旧版本已有的备注与进度会在启动时合并迁移到事项描述，原时间线不再显示。
+- 每个事项描述最多 6 张图片，最长边压缩到 1600px，保存在数据目录的 `Attachments/` 下，Markdown 中以 `![图片](attachments/文件名)` 引用；描述与图片只保存在本机，不支持云同步。
+- Markdown 支持小标题（`#`–`######`）、正文、`-`/`*` 列表、有序列表、引用、代码块、整行图片，以及加粗 / 斜体 / 行内代码 / 链接等行内样式；不支持表格。
+- 旧版本已有的备注、进度与结构化描述会在启动时迁移为 Markdown（图片转存为附件文件），原时间线不再显示。
+- 删除事项或从描述中移除图片引用后，附件文件不会立即清理。
 
 - 全局快捷键提供 3 个预设（⌥Space / ⌃⌥Space / ⌥T），不做任意键位录制。
 - 吸附边缘、沿边位置和自由浮动位置会在下次启动恢复；多显示器以松手时鼠标所在屏幕为准，不保存显示器身份。
