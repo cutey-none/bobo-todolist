@@ -2,9 +2,13 @@ import Foundation
 import SwiftData
 
 /// 任务读写入口，集中实现 PRD 4.2 的排序规则与写入时机（立即保存）。
+/// 所有写操作都以本地保存成功为准：失败时回滚内存改动并返回失败，界面据此保留原状态。
 struct TaskRepository {
     let context: ModelContext
     var attachments: AttachmentStore = .shared
+
+    /// 验证用：模拟本地写入失败（测试或 `QT_FAIL_SAVES=1`）。
+    static var simulatesSaveFailure = ProcessInfo.processInfo.environment["QT_FAIL_SAVES"] == "1"
 
     func allTasks() -> [TaskItem] {
         let descriptor = FetchDescriptor<TaskItem>()
@@ -33,32 +37,33 @@ struct TaskRepository {
             }
     }
 
-    @discardableResult
-    func addTask(title: String, quadrant: Quadrant, note: String? = nil, to tasks: [TaskItem]) -> TaskItem {
-        let top = activeTasks(in: quadrant, from: tasks).map(\.sortOrder).min() ?? 1
-        let task = TaskItem(
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            note: note,
-            quadrant: quadrant,
-            sortOrder: top - 1
-        )
-        context.insert(task)
-        save()
-        return task
+    /// 未完成列表末尾的排序值：新建与恢复未完成都追加到末尾。
+    private func endSortOrder(in quadrant: Quadrant, from tasks: [TaskItem]) -> Int {
+        (activeTasks(in: quadrant, from: tasks).map(\.sortOrder).max() ?? -1) + 1
     }
 
-    func update(_ task: TaskItem, title: String, note: String?, quadrant: Quadrant) {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        if task.quadrant != quadrant {
-            let top = activeTasks(in: quadrant, from: allTasks()).map(\.sortOrder).min() ?? 1
-            task.sortOrder = top - 1
+    /// 标题不合法或保存失败时返回 nil，且不留下任何事项。
+    @discardableResult
+    func addTask(title: String, quadrant: Quadrant, note: String? = nil, to tasks: [TaskItem]) -> TaskItem? {
+        guard case .success(let valid) = TaskTitle.validate(title) else { return nil }
+        let task = TaskItem(title: valid, note: note, quadrant: quadrant, sortOrder: endSortOrder(in: quadrant, from: tasks))
+        context.insert(task)
+        return save() ? task : nil
+    }
+
+    /// 一次保存标题、描述与象限；换象限时追加到目标象限末尾。
+    @discardableResult
+    func update(_ task: TaskItem, title: String, note: String?, quadrant: Quadrant) -> Bool {
+        guard case .success(let valid) = TaskTitle.validate(title) else { return false }
+        return persist([task]) {
+            if task.quadrant != quadrant, !task.isCompleted {
+                task.sortOrder = endSortOrder(in: quadrant, from: allTasks())
+            }
+            task.title = valid
+            task.note = note
+            task.quadrant = quadrant
+            task.updatedAt = Date()
         }
-        task.title = trimmed
-        task.note = note
-        task.quadrant = quadrant
-        task.updatedAt = Date()
-        save()
     }
 
     /// 事项描述的 Markdown 文本；旧版结构化描述会即时转换。
@@ -66,10 +71,12 @@ struct TaskRepository {
         TaskDescription.markdown(fromStored: task.note, saveImage: attachments.save)
     }
 
-    func saveDescription(_ markdown: String, for task: TaskItem) {
-        task.note = TaskDescription.normalized(markdown)
-        task.updatedAt = Date()
-        save()
+    @discardableResult
+    func saveDescription(_ markdown: String, for task: TaskItem) -> Bool {
+        persist([task]) {
+            task.note = TaskDescription.normalized(markdown)
+            task.updatedAt = Date()
+        }
     }
 
     /// 启动时把旧版 JSON 块描述一次性改写为 Markdown，图片转存为附件文件。
@@ -114,21 +121,38 @@ struct TaskRepository {
         if migrated { save() }
     }
 
-    func toggleCompletion(_ task: TaskItem) {
-        task.isCompleted.toggle()
-        if task.isCompleted {
-            task.completedAt = Date()
-        } else {
-            // 取消完成后回到该象限未完成区顶部。
-            task.completedAt = nil
-            let top = activeTasks(in: task.quadrant, from: allTasks()).map(\.sortOrder).min() ?? 1
-            task.sortOrder = top - 1
+    @discardableResult
+    func toggleCompletion(_ task: TaskItem) -> Bool {
+        persist([task]) {
+            if task.isCompleted {
+                // 恢复未完成后追加到该象限未完成列表末尾（UI PRD 5.2 建议默认）。
+                task.sortOrder = endSortOrder(in: task.quadrant, from: allTasks())
+                task.completedAt = nil
+            } else {
+                task.completedAt = Date()
+            }
+            task.isCompleted.toggle()
+            task.updatedAt = Date()
         }
-        task.updatedAt = Date()
-        save()
     }
 
-    func move(_ task: TaskItem, to quadrant: Quadrant, dropIndex: Int? = nil) {
+    /// 键盘「上移 / 下移」：在所属象限未完成列表内移动，越界时停在两端。
+    @discardableResult
+    func reorder(_ task: TaskItem, by delta: Int) -> Bool {
+        var list = activeTasks(in: task.quadrant, from: allTasks())
+        guard let index = list.firstIndex(where: { $0.id == task.id }) else { return false }
+        let target = min(max(index + delta, 0), list.count - 1)
+        guard target != index else { return true }
+        return persist(list) {
+            list.remove(at: index)
+            list.insert(task, at: target)
+            for (order, item) in list.enumerated() { item.sortOrder = order }
+            task.updatedAt = Date()
+        }
+    }
+
+    @discardableResult
+    func move(_ task: TaskItem, to quadrant: Quadrant, dropIndex: Int? = nil) -> Bool {
         let target = activeTasks(in: quadrant, from: allTasks()).filter { $0.id != task.id }
         let ordered: [TaskItem]
         if let index = dropIndex, index >= 0, index < target.count {
@@ -136,24 +160,26 @@ struct TaskRepository {
         } else {
             ordered = [task] + target
         }
-        task.quadrant = quadrant
-        task.updatedAt = Date()
-        for (index, item) in ordered.enumerated() {
-            item.sortOrder = index
+        return persist(ordered) {
+            task.quadrant = quadrant
+            task.updatedAt = Date()
+            for (index, item) in ordered.enumerated() {
+                item.sortOrder = index
+            }
         }
-        save()
     }
 
-    func delete(_ task: TaskItem) -> TaskSnapshot {
+    /// 删除成功返回可撤销的快照；保存失败时事项保留，返回 nil。
+    func delete(_ task: TaskItem) -> TaskSnapshot? {
         let snapshot = TaskSnapshot(task)
         context.delete(task)
-        save()
-        return snapshot
+        return save() ? snapshot : nil
     }
 
-    func restore(_ snapshot: TaskSnapshot) {
+    @discardableResult
+    func restore(_ snapshot: TaskSnapshot) -> Bool {
         context.insert(snapshot.makeTask())
-        save()
+        return save()
     }
 
     func progress(for taskID: UUID) -> [ProgressEntry] {
@@ -191,11 +217,60 @@ struct TaskRepository {
         return entries.reduce(into: [:]) { $0[$1.taskID, default: 0] += 1 }
     }
 
-    func save() {
+    /// 修改已有事项并保存；保存失败时把这些事项的字段逐一恢复原值。
+    /// SwiftData 的 rollback 不会还原已加载对象的属性，因此需要显式快照。
+    private func persist(_ tasks: [TaskItem], _ change: () -> Void) -> Bool {
+        let before = tasks.map { (task: $0, fields: TaskFields($0)) }
+        change()
+        guard save() else {
+            for item in before { item.fields.apply(to: item.task) }
+            return false
+        }
+        return true
+    }
+
+    @discardableResult
+    func save() -> Bool {
         do {
+            if Self.simulatesSaveFailure { throw CocoaError(.fileWriteUnknown) }
             try context.save()
+            return true
         } catch {
             NSLog("QuadrantTodo: 保存失败 \(error.localizedDescription)")
+            // 丢弃未写入的内存改动，界面与磁盘保持一致。
+            context.rollback()
+            return false
         }
+    }
+}
+
+/// 事项可变字段的快照，用于保存失败时还原。
+private struct TaskFields {
+    let title: String
+    let note: String?
+    let quadrantRaw: String
+    let isCompleted: Bool
+    let completedAt: Date?
+    let sortOrder: Int
+    let updatedAt: Date
+
+    init(_ task: TaskItem) {
+        title = task.title
+        note = task.note
+        quadrantRaw = task.quadrantRaw
+        isCompleted = task.isCompleted
+        completedAt = task.completedAt
+        sortOrder = task.sortOrder
+        updatedAt = task.updatedAt
+    }
+
+    func apply(to task: TaskItem) {
+        task.title = title
+        task.note = note
+        task.quadrantRaw = quadrantRaw
+        task.isCompleted = isCompleted
+        task.completedAt = completedAt
+        task.sortOrder = sortOrder
+        task.updatedAt = updatedAt
     }
 }

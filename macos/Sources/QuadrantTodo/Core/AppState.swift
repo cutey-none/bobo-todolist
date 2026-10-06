@@ -97,7 +97,7 @@ final class AppState: ObservableObject {
     func delete(_ task: TaskItem) {
         // Replacing the single undo slot ends the previous deletion's grace period.
         if undo != nil { repository.purgeOrphanProgress() }
-        let snapshot = repository.delete(task)
+        guard let snapshot = repository.delete(task) else { return }
         undo = UndoEntry(snapshot: snapshot, title: task.title)
         undoTimer?.invalidate()
         undoTimer = Timer.scheduledTimer(withTimeInterval: Metrics.undoWindow, repeats: false) { [weak self] _ in
