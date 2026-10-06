@@ -12,18 +12,18 @@ enum Quadrant: String, CaseIterable, Identifiable, Codable {
     var name: String {
         switch self {
         case .importantUrgent: return "重要且紧急"
-        case .importantNotUrgent: return "重要但不紧急"
+        case .importantNotUrgent: return "重要不紧急"
         case .notImportantUrgent: return "不重要但紧急"
-        case .notImportantNotUrgent: return "不重要且不紧急"
+        case .notImportantNotUrgent: return "不重要不紧急"
         }
     }
 
     var hint: String {
         switch self {
         case .importantUrgent: return "立即处理"
-        case .importantNotUrgent: return "计划投入"
-        case .notImportantUrgent: return "尽快处理"
-        case .notImportantNotUrgent: return "稍后再说"
+        case .importantNotUrgent: return "安排时间"
+        case .notImportantUrgent: return "尽快完成"
+        case .notImportantNotUrgent: return "有空再做"
         }
     }
 
