@@ -6,8 +6,10 @@ struct QuadrantCardView: View {
     let activeTasks: [TaskItem]
     let completedTasks: [TaskItem]
     let describedTaskIDs: Set<UUID>
+    let expandedTaskIDs: Set<UUID>
     let focusedTaskID: UUID?
     let onToggle: (TaskItem) -> Void
+    let onToggleExpand: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
     let onDelete: (TaskItem) -> Void
     let onAdd: (Quadrant) -> Void
@@ -28,9 +30,11 @@ struct QuadrantCardView: View {
                     TaskRowView(
                         task: task,
                         hasDescription: describedTaskIDs.contains(task.id),
+                        isExpanded: expandedTaskIDs.contains(task.id),
                         isFocused: focusedTaskID == task.id,
                         isTargeted: targetedTaskID == task.id,
                         onToggle: { withAnimation(.easeOut(duration: 0.18)) { onToggle(task) } },
+                        onToggleExpand: { onToggleExpand(task) },
                         onEdit: { onEdit(task) },
                         onDelete: { onDelete(task) },
                         onDropBefore: { items in
@@ -136,9 +140,11 @@ struct QuadrantCardView: View {
                     TaskRowView(
                         task: task,
                         hasDescription: describedTaskIDs.contains(task.id),
+                        isExpanded: expandedTaskIDs.contains(task.id),
                         isFocused: focusedTaskID == task.id,
                         isTargeted: false,
                         onToggle: { withAnimation(.easeOut(duration: 0.18)) { onToggle(task) } },
+                        onToggleExpand: { onToggleExpand(task) },
                         onEdit: { onEdit(task) },
                         onDelete: { onDelete(task) },
                         onDropBefore: { _ in false },

@@ -21,6 +21,8 @@ final class AppState: ObservableObject {
     @Published var editorCloseRequest = 0
     @Published var undo: UndoEntry?
     @Published var focusedTaskID: UUID?
+    /// 主界面中展开查看描述的事项（单击切换，双击进入编辑）。
+    @Published var expandedTaskIDs: Set<UUID> = []
     @Published var isDraggingTask = false
     /// 用于请求输入框聚焦（每次自增都会让视图重新获取焦点）。
     @Published var focusRequest = 0
@@ -126,6 +128,10 @@ final class AppState: ObservableObject {
         guard let task = editing else { return }
         repository.update(task, title: title, note: note, quadrant: quadrant)
         editing = nil
+    }
+
+    func toggleExpanded(_ task: TaskItem) {
+        if expandedTaskIDs.remove(task.id) == nil { expandedTaskIDs.insert(task.id) }
     }
 
     func requestEditorClose() {
