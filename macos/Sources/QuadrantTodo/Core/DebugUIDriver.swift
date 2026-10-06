@@ -5,7 +5,7 @@ import AppKit
 ///
 /// 脚本每行一条命令，坐标为面板内容区左上角起的点坐标：
 /// `click x y` · `doubleclick x y` · `drag x y dx dy`（从 x y 按住拖动 dx dy 屏幕点） ·
-/// `size 宽 高`（修改面板尺寸） · `type 文本`（`\n` 表示换行） · `key esc|return` · `wait 毫秒` ·
+/// `size 宽 高`（修改面板尺寸） · `type 文本`（`\n` 表示换行） · `key esc|return|cmd-n` · `wait 毫秒` ·
 /// `shot 名称`（写出 `名称.req`，等外部截图后删除该文件再继续）。
 @MainActor
 final class DebugUIDriver {
@@ -138,9 +138,13 @@ final class DebugUIDriver {
     }
 
     private func key(_ name: String) {
-        let (code, characters): (UInt16, String) = name == "esc" ? (53, "\u{1B}") : (36, "\r")
+        let (code, characters, flags): (UInt16, String, NSEvent.ModifierFlags) = switch name {
+        case "esc": (53, "\u{1B}", [])
+        case "cmd-n": (45, "n", .command)
+        default: (36, "\r", [])
+        }
         for type in [NSEvent.EventType.keyDown, .keyUp] {
-            guard let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [],
+            guard let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags,
                                                timestamp: ProcessInfo.processInfo.systemUptime,
                                                windowNumber: window.windowNumber, context: nil,
                                                characters: characters, charactersIgnoringModifiers: characters,
