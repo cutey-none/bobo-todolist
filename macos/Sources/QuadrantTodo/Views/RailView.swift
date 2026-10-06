@@ -7,7 +7,7 @@ struct RailView: View {
     let edge: EdgeSide
     let onHover: (Bool) -> Void
     let onDragBegan: () -> Void
-    let onDrag: (CGSize) -> Void
+    let onDrag: () -> Void
     let onDragEnded: () -> Void
 
     @State private var dragging = false
@@ -27,9 +27,9 @@ struct RailView: View {
         .onHover(perform: onHover)
         .gesture(
             DragGesture(minimumDistance: 2)
-                .onChanged { value in
+                .onChanged { _ in
                     if !dragging { dragging = true; onDragBegan() }
-                    onDrag(value.translation)
+                    onDrag()
                 }
                 .onEnded { _ in dragging = false; onDragEnded() }
         )

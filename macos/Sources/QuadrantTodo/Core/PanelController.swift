@@ -36,6 +36,7 @@ final class PanelController: NSObject {
     /// 暂停这些属性各自的布局订阅，避免多个相反方向的窗口动画互相覆盖。
     private var isApplyingDragSnap = false
     private var manualDragStartOrigin: NSPoint?
+    private var manualDragStartMouse: NSPoint?
 
     init(state: AppState, settings: SettingsStore, rootView: AnyView) {
         self.state = state
@@ -251,6 +252,8 @@ final class PanelController: NSObject {
 
     /// 收起态贴边条由 SwiftUI 手势驱动，使整个窗口跟随鼠标。
     func beginPanelDrag() {
+        // 必须在展开改动窗口位置之前取：事件坐标按当时的窗口位置换算。
+        manualDragStartMouse = screenMouseLocation()
         if !state.isExpanded {
             state.expand()
             // 贴边条开始拖动时先成为完整面板，避免带着屏外的大片隐藏区移动。
@@ -262,21 +265,40 @@ final class PanelController: NSObject {
         outsideSince = nil
     }
 
-    func dragPanel(translation: CGSize) {
-        guard let origin = manualDragStartOrigin else { return }
-        panel.setFrameOrigin(NSPoint(x: origin.x + translation.width, y: origin.y - translation.height))
+    /// 按屏幕坐标下的鼠标位移移动窗口。不能用 DragGesture 的 translation：
+    /// 它以视图坐标计算，窗口一移动视图坐标也跟着移，位移会被抵消一半，
+    /// 表现为拖动抖动、窗口跟不上鼠标而拖不到屏幕边缘。
+    func dragPanel() {
+        guard let origin = manualDragStartOrigin, let start = manualDragStartMouse else { return }
+        let mouse = screenMouseLocation()
+        panel.setFrameOrigin(NSPoint(x: origin.x + mouse.x - start.x, y: origin.y + mouse.y - start.y))
+    }
+
+    /// 当前鼠标事件在屏幕上的位置；取不到事件时退回系统光标位置。
+    /// 用事件产生时记录的全局坐标，而不是 locationInWindow：后者要按窗口
+    /// 当前位置换算，窗口刚被移动（如收起态拖动时先展开）就会算偏。
+    private func screenMouseLocation() -> NSPoint {
+        if let event = NSApp.currentEvent,
+           [.leftMouseDown, .leftMouseDragged, .leftMouseUp].contains(event.type),
+           let location = event.cgEvent?.location,
+           let primary = NSScreen.screens.first {
+            // CoreGraphics 以主屏左上角为原点、y 向下；AppKit 以左下角为原点。
+            return NSPoint(x: location.x, y: primary.frame.maxY - location.y)
+        }
+        return NSEvent.mouseLocation
     }
 
     func endPanelDrag() {
         guard isWindowDragging else { return }
         isWindowDragging = false
         manualDragStartOrigin = nil
+        manualDragStartMouse = nil
         finishWindowDrag()
     }
 
     /// 松手时只在鼠标或窗口确实进入屏幕边带时磁吸；否则保留自由位置。
     private func finishWindowDrag() {
-        let mouse = NSEvent.mouseLocation
+        let mouse = screenMouseLocation()
         let screen = NSScreen.screens.first(where: { $0.visibleFrame.contains(mouse) })
             ?? panel.screen ?? activeScreen
         let visible = screen.visibleFrame

@@ -16,7 +16,7 @@ struct PanelBodyView: View {
     let onCollapse: () -> Void
     let onSubmitDraft: () -> Void
     let onWindowDragBegan: () -> Void
-    let onWindowDrag: (CGSize) -> Void
+    let onWindowDrag: () -> Void
     let onWindowDragEnded: () -> Void
 
     @State private var windowDragging = false
@@ -118,12 +118,12 @@ struct PanelBodyView: View {
         // 显式桥接到 PanelController，保证展开后的整个 App 可以被拖动。
         .simultaneousGesture(
             DragGesture(minimumDistance: 2)
-                .onChanged { value in
+                .onChanged { _ in
                     if !windowDragging {
                         windowDragging = true
                         onWindowDragBegan()
                     }
-                    onWindowDrag(value.translation)
+                    onWindowDrag()
                 }
                 .onEnded { _ in
                     windowDragging = false

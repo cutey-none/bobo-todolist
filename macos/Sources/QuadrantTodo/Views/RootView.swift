@@ -32,7 +32,7 @@ struct RootView: View {
                 edge: settings.edge,
                 onHover: { state.controller?.railHoverChanged($0) },
                 onDragBegan: { state.controller?.beginPanelDrag() },
-                onDrag: { state.controller?.dragPanel(translation: $0) },
+                onDrag: { state.controller?.dragPanel() },
                 onDragEnded: { state.controller?.endPanelDrag() }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: railAlignment)
@@ -68,7 +68,7 @@ struct RootView: View {
             onCollapse: { state.collapse() },
             onSubmitDraft: { state.submitDraft() },
             onWindowDragBegan: { state.controller?.beginPanelDrag() },
-            onWindowDrag: { state.controller?.dragPanel(translation: $0) },
+            onWindowDrag: { state.controller?.dragPanel() },
             onWindowDragEnded: { state.controller?.endPanelDrag() }
         )
     }
