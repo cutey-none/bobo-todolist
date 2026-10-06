@@ -96,4 +96,15 @@ final class TaskRepositoryTests: XCTestCase {
         TaskRepository.simulatesSaveFailure = false
         XCTAssertEqual(titles(in: .importantUrgent), ["一"])
     }
+
+    func testUndoCompletionRestoresOriginalPosition() throws {
+        let first = try XCTUnwrap(repository.addTask(title: "一", quadrant: .importantUrgent, to: repository.allTasks()))
+        repository.addTask(title: "二", quadrant: .importantUrgent, to: repository.allTasks())
+        let before = CompletionState(first)
+        XCTAssertTrue(repository.toggleCompletion(first))
+        XCTAssertTrue(repository.restoreCompletion(first, to: before))
+        XCTAssertFalse(first.isCompleted)
+        XCTAssertNil(first.completedAt)
+        XCTAssertEqual(titles(in: .importantUrgent), ["一", "二"])
+    }
 }

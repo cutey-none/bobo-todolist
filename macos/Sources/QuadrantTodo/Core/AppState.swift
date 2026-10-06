@@ -13,11 +13,15 @@ struct InputFocusRequest: Equatable {
     let serial: Int
 }
 
-/// 短暂、非阻塞的操作反馈；失败提示停留更久。
+/// 短暂、非阻塞的操作反馈；失败提示停留更久，可附带一个「撤销」之类的动作。
 struct Notice: Identifiable, Equatable {
     let id = UUID()
     let text: String
     let isError: Bool
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    static func == (lhs: Notice, rhs: Notice) -> Bool { lhs.id == rhs.id }
 }
 
 /// 界面层共享状态：面板开合、草稿、输入焦点、撤销等。
@@ -182,10 +186,12 @@ final class AppState: ObservableObject {
         if undoQueue.isEmpty { repository.purgeOrphanProgress() }
     }
 
-    func show(_ text: String, isError: Bool = false) {
-        let notice = Notice(text: text, isError: isError)
+    func show(_ text: String, isError: Bool = false, actionTitle: String? = nil, action: (() -> Void)? = nil) {
+        let notice = Notice(text: text, isError: isError, actionTitle: actionTitle, action: action)
         self.notice = notice
-        DispatchQueue.main.asyncAfter(deadline: .now() + (isError ? 4 : 1.6)) { [weak self] in
+        // 带「撤销」的提示多留一会儿，给用户反应时间。
+        let duration: Double = action != nil ? 5 : (isError ? 4 : 1.6)
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
             if self?.notice?.id == notice.id { self?.notice = nil }
         }
     }
@@ -194,18 +200,28 @@ final class AppState: ObservableObject {
     func toggleCompletion(_ task: TaskItem) {
         guard !pendingCompletionIDs.contains(task.id) else { return }
         pendingCompletionIDs.insert(task.id)
-        let wasCompleted = task.isCompleted
+        let before = CompletionState(task)
         let title = task.title
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             let saved = withAnimation(.easeOut(duration: 0.18)) { self.repository.toggleCompletion(task) }
             self.pendingCompletionIDs.remove(task.id)
-            if saved {
-                self.show(wasCompleted ? "已恢复「\(title)」" : "已完成「\(title)」")
-            } else {
+            guard saved else {
                 self.show("保存失败，「\(title)」保持原状态", isError: true)
+                return
+            }
+            // 完成后事项会折叠进已完成区，误点时需要一步撤销；恢复未完成肉眼可见，不再提示。
+            guard !before.isCompleted else { return }
+            self.show("已完成「\(title)」", actionTitle: "撤销") { [weak self] in
+                self?.undoCompletion(task, to: before)
             }
         }
+    }
+
+    private func undoCompletion(_ task: TaskItem, to before: CompletionState) {
+        let restored = withAnimation(.easeOut(duration: 0.18)) { repository.restoreCompletion(task, to: before) }
+        notice = nil
+        if !restored { show("撤销失败，请重试", isError: true) }
     }
 
     /// 键盘等价的「移至象限」：插入到目标象限顶部，失败时保持原象限与顺序。

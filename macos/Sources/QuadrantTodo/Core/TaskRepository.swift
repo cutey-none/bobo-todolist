@@ -136,6 +136,17 @@ struct TaskRepository {
         }
     }
 
+    /// 撤销一次完成 / 恢复：回到切换前的完成状态与原排序位置。
+    @discardableResult
+    func restoreCompletion(_ task: TaskItem, to state: CompletionState) -> Bool {
+        persist([task]) {
+            task.isCompleted = state.isCompleted
+            task.completedAt = state.completedAt
+            task.sortOrder = state.sortOrder
+            task.updatedAt = Date()
+        }
+    }
+
     /// 键盘「上移 / 下移」：在所属象限未完成列表内移动，越界时停在两端。
     @discardableResult
     func reorder(_ task: TaskItem, by delta: Int) -> Bool {
@@ -272,5 +283,18 @@ private struct TaskFields {
         task.completedAt = completedAt
         task.sortOrder = sortOrder
         task.updatedAt = updatedAt
+    }
+}
+
+/// 切换完成状态前的快照，供「撤销」恢复。
+struct CompletionState {
+    let isCompleted: Bool
+    let completedAt: Date?
+    let sortOrder: Int
+
+    init(_ task: TaskItem) {
+        isCompleted = task.isCompleted
+        completedAt = task.completedAt
+        sortOrder = task.sortOrder
     }
 }

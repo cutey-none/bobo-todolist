@@ -113,18 +113,29 @@ struct RootView: View {
     @ViewBuilder
     private var noticeBanner: some View {
         if let notice = state.notice, state.isExpanded {
-            Label(notice.text, systemImage: notice.isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(notice.isError ? Theme.red : .primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Capsule().fill(.regularMaterial).shadow(color: .black.opacity(0.15), radius: 8, y: 3))
-                .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
-                .padding(.top, 16)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-                .allowsHitTesting(false)
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.updatesFrequently)
+            HStack(spacing: 10) {
+                Label(notice.text, systemImage: notice.isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(notice.isError ? Theme.red : .primary)
+                    .lineLimit(1)
+                if let title = notice.actionTitle, let action = notice.action {
+                    Button(title, action: action)
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+            .font(.system(size: 11.5, weight: .medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(.regularMaterial).shadow(color: .black.opacity(0.15), radius: 8, y: 3))
+            .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
+            .padding(.top, 16)
+            .padding(.horizontal, 24)
+            .transition(.opacity.combined(with: .move(edge: .top)))
+            // 只有带动作的提示需要接收点击，其余不挡住下面的顶栏。
+            .allowsHitTesting(notice.action != nil)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.updatesFrequently)
         }
     }
 
