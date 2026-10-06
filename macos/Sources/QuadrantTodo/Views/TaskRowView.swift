@@ -21,6 +21,7 @@ struct TaskRowView: View {
     let onTargeted: (Bool) -> Void
 
     @State private var titleHovering = false
+    @State private var rowHovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -52,13 +53,14 @@ struct TaskRowView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
+            dragHandle
             completionButton
             titleButton
             blankArea
             expandButton
         }
-        .padding(.leading, 4)
         .frame(minHeight: 40)
+        .onHover { rowHovering = $0 }
     }
 
     private var completionButton: some View {
@@ -132,20 +134,29 @@ struct TaskRowView: View {
             .accessibilityHidden(true)
     }
 
+    /// 悬停时出现的拖拽把手，让「可以拖」被看见；已完成事项不显示。
+    private var dragHandle: some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(Theme.tertiaryText)
+            .frame(width: 12, height: 32)
+            .contentShape(Rectangle())
+            .opacity(rowHovering && !task.isCompleted ? 1 : 0)
+            .modifier(RowDragSource(task: task, isEnabled: !task.isCompleted))
+            .help("拖动以排序或移到其他象限")
+            .accessibilityHidden(true)
+    }
+
+    /// 有描述的行常显箭头（也代替原来的描述图标）；没有描述时只在悬停或展开时出现，
+    /// 隐藏时仍可点击，与行空白的行为一致。
     private var expandButton: some View {
         Button(action: toggleExpand) {
-            HStack(spacing: 4) {
-                if hasDescription {
-                    Image(systemName: "text.alignleft")
-                        .font(.system(size: 9))
-                        .foregroundStyle(isExpanded ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Theme.secondaryText))
-                }
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Theme.secondaryText)
-            }
-            .frame(minWidth: 28, minHeight: 32)
-            .contentShape(Rectangle())
+            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Theme.secondaryText)
+                .frame(minWidth: 28, minHeight: 32)
+                .contentShape(Rectangle())
+                .opacity(hasDescription || isExpanded || rowHovering || isFocused ? 1 : 0)
         }
         .buttonStyle(.plain)
         .help(isExpanded ? "收起描述" : "展开描述")
@@ -164,7 +175,7 @@ struct TaskRowView: View {
                     .foregroundStyle(Theme.secondaryText)
             }
         }
-        .padding(.leading, 42)
+        .padding(.leading, 57)
         .padding(.trailing, 12)
         .padding(.bottom, 12)
         .transition(.opacity)
