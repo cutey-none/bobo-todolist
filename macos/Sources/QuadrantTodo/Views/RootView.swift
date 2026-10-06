@@ -54,6 +54,7 @@ struct RootView: View {
     private var bodyView: some View {
         PanelBodyView(
             state: state,
+            today: ticker.now,
             activeCounts: activeCounts,
             completedCounts: completedCounts,
             activeTasks: activeByQuadrant,

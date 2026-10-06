@@ -9,6 +9,10 @@ enum Theme {
     static let accent = Color(hex: 0x2F6FEB)
     static let secondaryText = Color.primary.opacity(0.55)
     static let hairline = Color.primary.opacity(0.08)
+    static let divider = Color.primary.opacity(0.07)
+    static let panelBackground = Color(nsColor: .windowBackgroundColor)
+    /// 悬停、展开、输入行等浅底。
+    static let subtleFill = Color.primary.opacity(0.035)
 }
 
 extension Color {
@@ -42,8 +46,9 @@ enum Metrics {
     static let maxPanelHeight: CGFloat = 960
     static let panelSizeStep: CGFloat = 20
 
-    /// 四象限内容的最小布局宽度：视口比它窄时出现横向滚动。
-    static let contentMinWidth: CGFloat = 520
+    /// 主内容可用宽度不小于此值时四象限为 2×2，否则纵向单列（UI PRD 4.2 建议默认）。
+    static let matrixBreakpoint: CGFloat = 900
+    static let contentPadding: CGFloat = 16
 
     static let expandDuration: Double = 0.22
     static let hoverExpandDelay: Double = 0.12

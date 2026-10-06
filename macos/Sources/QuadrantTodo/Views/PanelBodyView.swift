@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 展开态：标题栏 + 四象限列表 + 底部新建 / 收起（PRD 12.3）。
+/// 展开态：顶栏 + 优先矩阵（UI PRD 4）。
 struct PanelBodyView: View {
     @ObservedObject var state: AppState
+    let today: Date
     let activeCounts: [Quadrant: Int]
     let completedCounts: [Quadrant: Int]
     let activeTasks: [Quadrant: [TaskItem]]
@@ -26,16 +27,12 @@ struct PanelBodyView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().overlay(Theme.hairline)
+            Divider().overlay(Theme.divider)
             quadrantScroll
             Divider().overlay(Theme.hairline)
             footer
         }
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.clear)
-                .background(VisualEffectView(material: .popover).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous)))
-        )
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.panelBackground))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.5)
@@ -43,62 +40,74 @@ struct PanelBodyView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    /// 内容区：固定窗口尺寸下，纵向超出用滚轮滚动，横向超出可左右滚动。
+    /// 内容区整体纵向滚动；按主内容可用宽度在 2×2 与单列之间切换。
     private var quadrantScroll: some View {
         GeometryReader { proxy in
-            ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                VStack(spacing: 7) {
-                    ForEach(Quadrant.allCases) { quadrant in
-                        QuadrantCardView(
-                            quadrant: quadrant,
-                            activeTasks: activeTasks[quadrant] ?? [],
-                            completedTasks: completedTasks[quadrant] ?? [],
-                            describedTaskIDs: describedTaskIDs,
-                            expandedTaskIDs: state.expandedTaskIDs,
-                            focusedTaskID: state.focusedTaskID,
-                            onToggle: onToggle,
-                            onToggleExpand: { state.toggleExpanded($0) },
-                            onEdit: onEdit,
-                            onDelete: onDelete,
-                            onAdd: onAdd,
-                            onDrop: { raw, index in onDrop(raw, quadrant, index) },
-                            onDragStateChange: { dragging in
-                                if dragging { state.isDraggingTask = true }
-                            }
-                        )
-                    }
+            let columns = proxy.size.width - Metrics.contentPadding * 2 >= Metrics.matrixBreakpoint ? 2 : 1
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 12) {
+                    matrixHeading
+                    matrix(columns: columns)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 9)
-                // 低于最小布局宽度时横向滚动，窗口更宽时自适应铺满。
-                .frame(width: max(proxy.size.width, Metrics.contentMinWidth), alignment: .topLeading)
+                .padding(Metrics.contentPadding)
             }
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 9) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(Theme.accent)
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 24, height: 24)
-
-            Text("待办事项")
-                .font(.system(size: 14.5, weight: .semibold))
-
-            Spacer(minLength: 4)
-
-            Text("未完成")
-                .font(.system(size: 10.5))
+    private var matrixHeading: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("优先矩阵")
+                .font(.system(size: 16, weight: .bold))
+            Spacer(minLength: 8)
+            Text("\(totalActive) 个待办")
+                .font(.system(size: 11))
                 .foregroundStyle(Theme.secondaryText)
-            Text("\(totalActive)")
-                .font(.system(size: 12.5, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .contentTransition(.numericText())
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func matrix(columns: Int) -> some View {
+        MatrixLayout(columns: columns) {
+            ForEach(Array(Quadrant.allCases.enumerated()), id: \.element) { index, quadrant in
+                QuadrantCardView(
+                    quadrant: quadrant,
+                    activeTasks: activeTasks[quadrant] ?? [],
+                    completedTasks: completedTasks[quadrant] ?? [],
+                    describedTaskIDs: describedTaskIDs,
+                    expandedTaskIDs: state.expandedTaskIDs,
+                    focusedTaskID: state.focusedTaskID,
+                    onToggle: onToggle,
+                    onToggleExpand: { state.toggleExpanded($0) },
+                    onEdit: onEdit,
+                    onDelete: onDelete,
+                    onAdd: onAdd,
+                    onDrop: { raw, index in onDrop(raw, quadrant, index) },
+                    onDragStateChange: { dragging in
+                        if dragging { state.isDraggingTask = true }
+                    }
+                )
+                .overlay(alignment: .trailing) {
+                    if columns == 2, index % 2 == 0 { Rectangle().fill(Theme.divider).frame(width: 1) }
+                }
+                .overlay(alignment: .bottom) {
+                    if index < Quadrant.allCases.count - columns { Rectangle().fill(Theme.divider).frame(height: 1) }
+                }
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.divider, lineWidth: 1))
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("四象限待办")
+                .font(.system(size: 17, weight: .bold))
+            Text(Self.dateText(today))
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.secondaryText)
+
+            Spacer(minLength: 4)
 
             Button(action: onCollapse) {
                 Text("收起")
@@ -111,8 +120,8 @@ struct PanelBodyView: View {
             .buttonStyle(.plain)
             .help("收起为贴边条（Esc）")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Metrics.contentPadding + 2)
+        .padding(.vertical, 12)
         .contentShape(Rectangle())
         // SwiftUI 内容会覆盖 NSPanel 的 background-drag 命中区，因此标题栏
         // 显式桥接到 PanelController，保证展开后的整个 App 可以被拖动。
@@ -171,5 +180,13 @@ struct PanelBodyView: View {
         .padding(.horizontal, 10)
         .padding(.top, 8)
         .padding(.bottom, 10)
+    }
+
+    /// 顶栏系统日期，例如「10月6日 · 周二」。
+    static func dateText(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日 · EEE"
+        return formatter.string(from: date)
     }
 }

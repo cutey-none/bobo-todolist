@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 单个象限卡片：未完成任务优先，已完成折叠到底部（PRD F3 / 4.2）。
+/// 单个象限：标题与未完成数、细线分隔的任务行、默认折叠的已完成区（UI PRD 4.1）。
 struct QuadrantCardView: View {
     let quadrant: Quadrant
     let activeTasks: [TaskItem]
@@ -21,8 +21,9 @@ struct QuadrantCardView: View {
     @State private var targetedTaskID: UUID?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 0) {
             header
+            Divider().overlay(Theme.divider)
             if activeTasks.isEmpty {
                 emptyPlaceholder
             } else {
@@ -47,13 +48,16 @@ struct QuadrantCardView: View {
                             targetedTaskID = targeted ? task.id : nil
                         }
                     )
+                    Divider().overlay(Theme.divider)
                 }
             }
             if !completedTasks.isEmpty { completedSection }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .background(CardBackground(isHighlighted: isTargeted))
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(isTargeted ? Theme.accent.opacity(0.06) : .clear)
         .dropDestination(for: String.self) { items, _ in
             guard let raw = items.first else { return false }
             onDrop(raw, nil)
@@ -64,14 +68,16 @@ struct QuadrantCardView: View {
             if targeted { onDragStateChange(true) }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(quadrant.name)，\(activeTasks.count) 项未完成")
+        .accessibilityLabel("\(quadrant.name)，\(activeTasks.count) 项待办")
     }
 
     private var header: some View {
-        HStack(spacing: 6) {
-            Circle().fill(quadrant.color).frame(width: 7, height: 7)
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(quadrant.name)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
+            Text("· \(quadrant.hint)")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Theme.secondaryText)
             Button {
                 onAdd(quadrant)
             } label: {
@@ -83,35 +89,20 @@ struct QuadrantCardView: View {
             .help("在\(quadrant.name)新建任务")
             .opacity(0.85)
             Spacer(minLength: 4)
-            Text("\(activeTasks.count) / \(activeTasks.count + completedTasks.count)")
-                .font(.system(size: 10, weight: .medium))
+            // 只统计未完成事项；已完成数量在折叠入口里单独显示。
+            Text("\(activeTasks.count)")
+                .font(.system(size: 11))
                 .foregroundStyle(Theme.secondaryText)
                 .monospacedDigit()
         }
-        .padding(.horizontal, 4)
-        .padding(.bottom, 3)
+        .padding(.bottom, 10)
     }
 
     private var emptyPlaceholder: some View {
-        Button {
-            onAdd(quadrant)
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "diamond")
-                    .font(.system(size: 9))
-                Text("暂无任务，点击添加")
-                    .font(.system(size: 11.5))
-            }
+        Text("暂无待办")
+            .font(.system(size: 11.5))
             .foregroundStyle(Theme.secondaryText)
-            .frame(maxWidth: .infinity)
-            .frame(height: 30)
-            .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    .foregroundStyle(Theme.hairline)
-            )
-        }
-        .buttonStyle(.plain)
+            .padding(.vertical, 10)
     }
 
     private var completedSection: some View {
@@ -128,8 +119,7 @@ struct QuadrantCardView: View {
                     Spacer(minLength: 0)
                 }
                 .foregroundStyle(Theme.secondaryText)
-                .padding(.horizontal, 4)
-                .frame(height: 20)
+                .frame(height: 30)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -153,6 +143,6 @@ struct QuadrantCardView: View {
                 }
             }
         }
-        .padding(.top, 1)
+        .padding(.top, 8)
     }
 }
