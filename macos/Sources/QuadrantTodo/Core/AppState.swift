@@ -134,9 +134,9 @@ final class AppState: ObservableObject {
                 inputProblems[quadrant] = "保存失败，请重试"
                 return
             }
+            // 新事项直接出现在列表末尾，无需再弹提示。
             drafts[quadrant] = ""
             inputProblems[quadrant] = nil
-            show("已添加到\(quadrant.name)")
         }
         selectedQuadrant = quadrant
     }

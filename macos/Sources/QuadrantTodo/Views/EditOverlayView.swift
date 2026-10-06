@@ -295,7 +295,7 @@ struct EditOverlayView: View {
         originalTitle = valid
         originalQuadrant = quadrant
         originalMarkdown = markdown
-        state.show("已保存")
+        // 浮层关闭、列表更新就是保存成功的反馈；只有失败才提示。
         onClose()
         return true
     }
