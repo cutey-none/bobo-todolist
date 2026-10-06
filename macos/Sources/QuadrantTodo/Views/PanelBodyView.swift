@@ -80,7 +80,7 @@ struct PanelBodyView: View {
                     activeTasks: activeTasks[quadrant] ?? [],
                     completedTasks: completedTasks[quadrant] ?? [],
                     describedTaskIDs: describedTaskIDs,
-                    expandedTaskIDs: state.expandedTaskIDs,
+                    expandedTaskID: state.expandedTaskID,
                     focusedTaskID: state.focusedTaskID,
                     onToggle: onToggle,
                     onToggleExpand: { state.toggleExpanded($0) },

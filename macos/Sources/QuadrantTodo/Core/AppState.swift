@@ -40,8 +40,8 @@ final class AppState: ObservableObject {
     @Published private(set) var undoQueue: [UndoEntry] = []
     @Published private(set) var notice: Notice?
     @Published var focusedTaskID: UUID?
-    /// 主界面中展开查看描述的事项（单击切换，双击进入编辑）。
-    @Published var expandedTaskIDs: Set<UUID> = []
+    /// 主界面中展开查看描述的事项：同一时刻只展开一个，含已完成区（UI PRD 5.1 建议默认）。
+    @Published var expandedTaskID: UUID?
     @Published var isDraggingTask = false
     /// 请求某个输入行获得焦点（每次自增都会让视图重新获取焦点）。
     @Published private(set) var inputFocusRequest: InputFocusRequest?
@@ -161,7 +161,7 @@ final class AppState: ObservableObject {
             self?.expireUndo(entry.id)
         }
         if focusedTaskID == id { focusedTaskID = nil }
-        expandedTaskIDs.remove(id)
+        if expandedTaskID == id { expandedTaskID = nil }
         return true
     }
 
@@ -202,8 +202,9 @@ final class AppState: ObservableObject {
         editing = nil
     }
 
+    /// 展开另一事项时自动收起当前事项；再次点击当前事项收起。
     func toggleExpanded(_ task: TaskItem) {
-        if expandedTaskIDs.remove(task.id) == nil { expandedTaskIDs.insert(task.id) }
+        expandedTaskID = expandedTaskID == task.id ? nil : task.id
     }
 
     func requestEditorClose() {
