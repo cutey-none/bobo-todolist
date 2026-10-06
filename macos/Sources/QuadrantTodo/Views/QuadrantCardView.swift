@@ -4,6 +4,7 @@ import SwiftUI
 struct QuadrantCardView: View {
     let quadrant: Quadrant
     var isCompact = false
+    var isHighlighted = false
     let activeTasks: [TaskItem]
     let completedTasks: [TaskItem]
     let describedTaskIDs: Set<UUID>
@@ -74,7 +75,7 @@ struct QuadrantCardView: View {
         .padding(.top, isCompact ? 10 : 14)
         .padding(.bottom, isCompact ? 10 : 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(isTargeted ? Theme.accent.opacity(0.06) : .clear)
+        .background(isTargeted || isHighlighted ? Theme.accent.opacity(0.07) : .clear)
         .dropDestination(for: String.self) { items, _ in
             guard let raw = items.first else { return false }
             onDrop(raw, nil)

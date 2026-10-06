@@ -37,6 +37,8 @@ final class AppState: ObservableObject {
     @Published var focusedInput: Quadrant?
     /// 最近使用的输入行：全局快捷键 / ⌘N 聚焦到这里。
     @Published var selectedQuadrant: Quadrant = .importantUrgent
+    /// 快捷键聚焦时短暂高亮的象限，让用户知道新事项会加到哪里。
+    @Published private(set) var highlightedQuadrant: Quadrant?
     @Published var editing: TaskItem?
     @Published var imagePreview: Data?
     @Published var editorCloseRequest = 0
@@ -103,6 +105,11 @@ final class AppState: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             let serial = (self?.inputFocusRequest?.serial ?? 0) + 1
             self?.inputFocusRequest = InputFocusRequest(quadrant: quadrant, serial: serial)
+        }
+        withAnimation(.easeOut(duration: 0.15)) { highlightedQuadrant = quadrant }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            guard self?.highlightedQuadrant == quadrant else { return }
+            withAnimation(.easeOut(duration: 0.4)) { self?.highlightedQuadrant = nil }
         }
     }
 

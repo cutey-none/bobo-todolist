@@ -61,6 +61,7 @@ struct PanelBodyView: View {
                 QuadrantCardView(
                     quadrant: quadrant,
                     isCompact: compact,
+                    isHighlighted: state.highlightedQuadrant == quadrant,
                     activeTasks: activeTasks[quadrant] ?? [],
                     completedTasks: completedTasks[quadrant] ?? [],
                     describedTaskIDs: describedTaskIDs,
