@@ -48,27 +48,10 @@ struct PanelBodyView: View {
         GeometryReader { proxy in
             let columns = proxy.size.width - Metrics.contentPadding * 2 >= Metrics.matrixBreakpoint ? 2 : 1
             ScrollView(.vertical, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 12) {
-                    matrixHeading
-                    matrix(columns: columns)
-                }
-                .padding(Metrics.contentPadding)
+                matrix(columns: columns)
+                    .padding(Metrics.contentPadding)
             }
         }
-    }
-
-    private var matrixHeading: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("优先矩阵")
-                .font(.system(size: 16, weight: .bold))
-            Spacer(minLength: 8)
-            Text("\(totalActive) 个待办")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.secondaryText)
-                .monospacedDigit()
-                .contentTransition(.numericText())
-        }
-        .accessibilityElement(children: .combine)
     }
 
     private func matrix(columns: Int) -> some View {
@@ -109,14 +92,24 @@ struct PanelBodyView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("四象限待办")
-                .font(.system(size: 17, weight: .bold))
+        // 小浮窗里只留一行标题：名称 · 日期 …… 未完成数 · 收起。
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("优先矩阵")
+                .font(.system(size: 16, weight: .bold))
             Text(Self.dateText(today))
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.secondaryText)
+                .lineLimit(1)
 
             Spacer(minLength: 4)
+
+            // 只统计未完成事项。
+            Text("\(totalActive) 个待办")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.secondaryText)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .fixedSize()
 
             Button(action: onCollapse) {
                 Text("收起")
