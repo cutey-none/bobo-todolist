@@ -2,22 +2,110 @@
 
 贴边悬浮的四象限待办工具，SwiftUI + SwiftData 实现，无网络、无账号、数据只存本机。
 
-## 构建与运行
+## 环境准备
+
+- 系统：macOS 14 Sonoma 或更新版本（使用 SwiftData，旧系统不能运行）。
+- 推荐工具链：Xcode 15 或更新版本，包含 Swift 5.9+ 和 macOS 14+ SDK。安装后首次打开 Xcode，接受许可并完成组件安装；在 Xcode → Settings → Locations 中选择 Command Line Tools。
+- 支持 Apple Silicon 与 Intel Mac。脚本默认编译当前电脑的架构；另一台电脑应从源码本机构建，不要依赖从不同架构电脑复制来的 `.app`。
+- 不需要 Homebrew、Node.js、Python、CodeGraph、额外 Swift 包或 Apple Developer 付费账号。只安装 Command Line Tools 时，也须确保它提供满足上述版本要求的 Swift 与 macOS SDK。
+
+打开终端检查：
 
 ```bash
-cd macos
+xcode-select -p
+xcrun swift --version
+xcrun --sdk macosx --show-sdk-version
+```
+
+Swift 应为 5.9 或更新版本，macOS SDK 应为 14.0 或更新版本。如果提示工具不存在，先安装 Xcode；如果已安装但选中了旧工具链，可执行（Xcode 位于默认安装路径时）：
+
+```bash
+sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -runFirstLaunch
+```
+
+## 构建与运行
+
+在新电脑上获取源码并构建：
+
+```bash
+git clone https://github.com/cutey-none/bobo-todolist.git
+cd bobo-todolist
+./macos/build.sh           # 编译 release 并生成 macos/build/QuadrantTodo.app
+open macos/build/QuadrantTodo.app
+```
+
+如果已经位于仓库的 `macos/` 目录，也可以执行：
+
+```bash
 ./build.sh                 # 编译 release 并生成 build/QuadrantTodo.app
 open build/QuadrantTodo.app
 ```
 
-安装到「应用程序」：
+成功时终端显示 `已生成：…/macos/build/QuadrantTodo.app`。脚本使用 Swift Package Manager 编译并组装 `.app`，无需创建 Xcode 工程；生成物和编译缓存不会提交到 Git。
+
+### 首次使用
+
+应用常驻菜单栏，**没有 Dock 图标，也不会默认弹出普通主窗口**。默认屏幕右侧有贴边条：悬停展开，或点击顶部菜单栏的待办图标、按 `⌥Space` 展开。菜单栏图标右键（或 Control-click）可打开设置与退出应用。
+
+在任一象限末尾输入待办并按回车保存；点圆圈完成。单击标题编辑事项和 Markdown 描述，点「保存」写入；单击行空白或箭头查看描述。退出后重开，任务和描述应仍在。
+
+### 安装到「应用程序」
+
+先通过菜单栏右键 →「退出四象限待办」退出已运行的实例。以下命令从**仓库根目录**执行；若已安装旧版，先在 Finder 中将 `/Applications/QuadrantTodo.app` 移到废纸篓，避免 `cp -R` 合并旧包。移除应用包不会删除本地待办数据。
 
 ```bash
-cp -R build/QuadrantTodo.app /Applications/
+cp -R macos/build/QuadrantTodo.app /Applications/
 open /Applications/QuadrantTodo.app
 ```
 
-开发调试：`swift build && .build/debug/QuadrantTodo`
+若没有系统「应用程序」目录的写入权限，可在 Finder 中安装到个人的 `~/Applications/`。以后启动安装后的应用即可，无需每次编译；不要同时运行源码目录与安装目录中的两个实例。
+
+### 更新与重建
+
+先退出应用，再从仓库根目录执行（有本地修改时先自行提交或保存；不要强制覆盖）：
+
+```bash
+git pull --ff-only
+./macos/build.sh
+open macos/build/QuadrantTodo.app
+```
+
+如果使用安装版，还需按上面的安装步骤替换旧 `.app`，然后打开安装版。仅 `git pull` 不会更新已经生成或安装的应用。
+
+### 常见问题
+
+- `Permission denied`（脚本执行权限丢失）：从仓库根目录运行 `zsh macos/build.sh`。
+- 找不到 Swift、SDK 或 SwiftData，或提示 tools version 不兼容：检查上面的工具链版本和 `xcode-select` 路径；更新 Xcode 后重新选择工具链。
+- 切换 Xcode 后出现缓存 / 模块版本错误：从仓库根目录执行 `cd macos`、`swift package clean`、`./build.sh`，重新构建。
+- 打开后看不到窗口：先检查菜单栏图标和屏幕贴边条；全局快捷键可能与其他软件冲突，可在菜单栏右键 →「设置…」换预设。
+- macOS 阻止打开：脚本只有 ad-hoc 签名，没有 Developer ID 公证。从自己信任的源码本机重新构建；如仍被拦截，按系统提示在「系统设置 → 隐私与安全性」中确认打开。不要全局关闭 Gatekeeper。签名警告不代表已通过系统安全检查。
+- 找不到新功能：确认已重新构建并替换安装版，而且没有旧实例仍在运行。
+
+## 数据备份与换机
+
+默认数据目录是 `~/Library/Application Support/QuadrantTodo/`，包含 `Tasks.store`、可能存在的 SQLite 辅助文件以及 `Attachments/` 图片目录。设置中的数据位置入口可在 Finder 中定位数据库。设置保存在本机 UserDefaults，仓库与 `.app` **不包含你的任务数据**，也不会自动同步到另一台电脑。
+
+如需迁移任务：先在两台电脑退出应用，备份两边的数据目录，再将旧电脑的**整个 `QuadrantTodo/` 数据目录**复制到新电脑的同一路径（确认后替换，不能只复制数据库而遗漏图片）。新电脑使用同版本或更新版本的应用打开；窗口位置和快捷键等设置需重新设置。Markdown 中自行填写的绝对图片路径 / `file://` 路径还需另行迁移对应文件；应用插入的相对附件随 `Attachments/` 一起迁移。
+
+## 开发与测试
+
+以下命令从仓库根目录执行：
+
+```bash
+cd macos
+swift test
+./build.sh debug
+open build/QuadrantTodo.app
+```
+
+也可用 `swift build && .build/debug/QuadrantTodo` 直接启动调试可执行文件。开发用环境变量建议直接传给可执行文件（不要依赖 `open` 给已有实例传递变量）：
+
+```bash
+QT_DATA_DIR="$(mktemp -d)" QT_START_EXPANDED=1 ./build/QuadrantTodo.app/Contents/MacOS/QuadrantTodo
+```
+
+`QT_DATA_DIR` 隔离数据库和附件，**不隔离 UserDefaults 设置**；首次示例数据也受本机设置影响。该命令的数据保存在临时目录，不会自动迁移到正式数据目录。
 
 可用启动参数（开发用）：
 
@@ -90,3 +178,5 @@ macos/
 ## 验证
 
 功能点逐项验证记录（含截图）见 [`../docs/verify/README.md`](../docs/verify/README.md)。
+
+2026-10-07 构建指南核验：在 Apple Silicon、macOS 26.5.2、Swift 6.3.3 环境，从 Git 已跟踪源码导出到独立临时目录（不含原工作目录的 `.build/` 缓存和未跟踪文件），执行 `./macos/build.sh` 成功，`swift test` 的 24 项测试全部通过；工作目录应用也已重建，`codesign --verify --deep --strict` 和 `plutil -lint` 检查通过。存在已有的 `withAnimation` 未使用返回值编译警告，不影响构建。尚未在 Intel Mac 或最低支持版本的系统 / 工具链上实测；上面的最低要求来自包配置和应用声明，不是完整兼容性测试结果。
