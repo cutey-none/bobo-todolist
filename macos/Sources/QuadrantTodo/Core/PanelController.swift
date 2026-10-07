@@ -37,6 +37,9 @@ final class PanelController: NSObject {
     private var isApplyingDragSnap = false
     private var manualDragStartOrigin: NSPoint?
     private var manualDragStartMouse: NSPoint?
+    /// 正在拖动边缘调整大小：期间不响应悬停收起，也不让尺寸设置回写窗口。
+    private var resizeEdges: ResizeEdges = []
+    private var resizeStartFrame: NSRect?
 
     init(state: AppState, settings: SettingsStore, rootView: AnyView) {
         self.state = state
@@ -298,6 +301,52 @@ final class PanelController: NSObject {
         finishWindowDrag()
     }
 
+    // MARK: - 拖动边缘调整大小
+
+    func beginResize(_ edges: ResizeEdges) {
+        guard state.isExpanded, !edges.isEmpty else { return }
+        resizeEdges = edges
+        resizeStartFrame = panel.frame
+        manualDragStartMouse = screenMouseLocation()
+        outsideSince = nil
+    }
+
+    /// 被拖动的边跟随鼠标，对边保持不动；尺寸夹在设置允许的范围内。
+    func resize() {
+        guard let start = resizeStartFrame, let startMouse = manualDragStartMouse else { return }
+        let mouse = screenMouseLocation()
+        let dx = mouse.x - startMouse.x
+        let dy = mouse.y - startMouse.y
+        var width = start.width
+        var height = start.height
+        if resizeEdges.contains(.left) { width -= dx }
+        if resizeEdges.contains(.right) { width += dx }
+        if resizeEdges.contains(.top) { height += dy }
+        if resizeEdges.contains(.bottom) { height -= dy }
+        let size = SettingsStore.clampPanelSize(CGSize(width: width, height: height))
+        // AppKit 原点在左下角：拖左边 / 下边时，右边 / 上边保持不动。
+        let x = resizeEdges.contains(.left) ? start.maxX - size.width : start.minX
+        let y = resizeEdges.contains(.bottom) ? start.maxY - size.height : start.minY
+        panel.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height), display: true)
+    }
+
+    func endResize() {
+        guard !resizeEdges.isEmpty else { return }
+        resizeEdges = []
+        resizeStartFrame = nil
+        manualDragStartMouse = nil
+        let frame = panel.frame
+        // 先记下位置，再写尺寸：尺寸变化会触发一次重新布局，必须落在用户松手的位置上。
+        if settings.isDocked {
+            let visible = (panel.screen ?? activeScreen).visibleFrame
+            let offset = settings.edge.isVertical ? frame.midY - visible.midY : frame.midX - visible.midX
+            settings.peekOffset = Double(max(-900, min(900, offset)))
+        } else {
+            settings.keepFloating(at: frame.origin)
+        }
+        settings.setPanelSize(width: frame.width, height: frame.height)
+    }
+
     /// 松手时只在鼠标或窗口确实进入屏幕边带时磁吸；否则保留自由位置。
     private func finishWindowDrag() {
         let mouse = screenMouseLocation()
@@ -386,7 +435,7 @@ final class PanelController: NSObject {
 
     private func tick() {
         guard !hiddenByUser else { return }
-        guard !isWindowDragging else { return }
+        guard !isWindowDragging, resizeEdges.isEmpty else { return }
         guard settings.isDocked else { return }
 
         let mouse = NSEvent.mouseLocation
@@ -519,4 +568,13 @@ final class PanelController: NSObject {
         }
         return false
     }
+}
+
+/// 正在拖动的窗口边；角落同时包含两条边。
+struct ResizeEdges: OptionSet {
+    let rawValue: Int
+    static let left = ResizeEdges(rawValue: 1 << 0)
+    static let right = ResizeEdges(rawValue: 1 << 1)
+    static let top = ResizeEdges(rawValue: 1 << 2)
+    static let bottom = ResizeEdges(rawValue: 1 << 3)
 }

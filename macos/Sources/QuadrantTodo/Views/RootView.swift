@@ -41,6 +41,16 @@ struct RootView: View {
             .allowsHitTesting(!state.isExpanded)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            if state.isExpanded {
+                ResizeHandles(
+                    dockedEdge: settings.isDocked ? settings.edge : nil,
+                    onBegin: { state.controller?.beginResize($0) },
+                    onDrag: { state.controller?.resize() },
+                    onEnd: { state.controller?.endResize() }
+                )
+            }
+        }
         .overlay(alignment: .bottom) { undoToast }
         .overlay(alignment: .top) { noticeBanner }
         .animation(.easeOut(duration: 0.18), value: state.notice)
