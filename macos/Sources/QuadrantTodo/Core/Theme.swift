@@ -57,8 +57,8 @@ enum Metrics {
 
     static let expandDuration: Double = 0.22
     static let hoverExpandDelay: Double = 0.12
-    static let hoverCollapseDelay: Double = 1.0
-    static let busyCollapseDelay: Double = 2.5
+    static let hoverCollapseDelay: Double = 0.5
+    static let busyCollapseDelay: Double = 1.5
     /// 轮询鼠标位置的间隔；越短，展开 / 收起的实际时机越贴近上面的延迟。
     static let mouseWatchInterval: Double = 0.05
     static let undoWindow: Double = 8
