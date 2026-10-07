@@ -426,7 +426,7 @@ final class PanelController: NSObject {
     // MARK: - 悬停展开 / 移出收起
 
     private func startMouseWatch() {
-        let timer = Timer(timeInterval: 0.2, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: Metrics.mouseWatchInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
         RunLoop.main.add(timer, forMode: .common)
