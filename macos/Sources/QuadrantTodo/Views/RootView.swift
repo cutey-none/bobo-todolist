@@ -18,10 +18,10 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
+            // 跟随窗口实际尺寸（拖动边缘调整大小时实时跟随），四周留出阴影边距。
             bodyView
-                .frame(width: settings.panelWidth - 16, height: settings.panelHeight - 16)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: bodyAlignment)
-                .padding(bodyEdgePadding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(Metrics.panelInset)
                 .opacity(state.isExpanded ? 1 : 0)
                 .scaleEffect(state.isExpanded ? 1 : 0.985, anchor: .center)
                 .animation(.easeOut(duration: 0.18), value: state.isExpanded)
@@ -40,7 +40,7 @@ struct RootView: View {
             .animation(.easeOut(duration: 0.12), value: state.isExpanded)
             .allowsHitTesting(!state.isExpanded)
         }
-        .frame(width: settings.panelWidth, height: settings.panelHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottom) { undoToast }
         .overlay(alignment: .top) { noticeBanner }
         .animation(.easeOut(duration: 0.18), value: state.notice)
@@ -189,14 +189,6 @@ struct RootView: View {
 
     // MARK: - 布局辅助
 
-    private var bodyAlignment: Alignment {
-        switch settings.edge {
-        case .right: return .leading
-        case .left: return .trailing
-        case .top: return .bottom
-        case .bottom: return .top
-        }
-    }
     /// 收起时窗口只有贴屏幕边缘的一小条可见：贴边条必须画在窗口的对应一侧。
     private var railAlignment: Alignment {
         switch settings.edge {
@@ -204,15 +196,6 @@ struct RootView: View {
         case .left: return .trailing
         case .top: return .bottom
         case .bottom: return .top
-        }
-    }
-
-    private var bodyEdgePadding: EdgeInsets {
-        switch settings.edge {
-        case .right: return EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 0)
-        case .left: return EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 8)
-        case .top: return EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8)
-        case .bottom: return EdgeInsets(top: 8, leading: 8, bottom: 0, trailing: 8)
         }
     }
 

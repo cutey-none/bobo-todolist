@@ -34,6 +34,8 @@ enum Metrics {
     static let railCorner: CGFloat = 12
     static let railHeight: CGFloat = 296
     static let screenMargin: CGFloat = 10
+    /// 展开面板与窗口边缘之间的透明边距（留给阴影，也是边缘调整大小的命中区）。
+    static let panelInset: CGFloat = 8
     /// 窗口边缘进入此距离后触发磁吸。
     static let edgeSnapThreshold: CGFloat = 28
 
