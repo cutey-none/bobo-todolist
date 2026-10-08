@@ -15,6 +15,7 @@ struct TaskRowView: View {
     let onToggle: () -> Void
     let onToggleExpand: () -> Void
     let onEdit: () -> Void
+    let onDelete: () -> Void
     var onMove: (Quadrant) -> Void = { _ in }
     var onReorder: (Int) -> Void = { _ in }
     let onDropBefore: ([String]) -> Bool
@@ -42,6 +43,7 @@ struct TaskRowView: View {
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: isExpanded ? "收起描述" : "展开描述") { onToggleExpand() }
         .accessibilityAction(named: "编辑") { onEdit() }
+        .accessibilityAction(named: "删除") { onDelete() }
         .accessibilityAction(named: "上移") { onReorder(-1) }
         .accessibilityAction(named: "下移") { onReorder(1) }
     }
@@ -58,6 +60,7 @@ struct TaskRowView: View {
             titleButton
             blankArea
             expandButton
+            deleteButton
         }
         .frame(minHeight: 40)
         .onHover { rowHovering = $0 }
@@ -163,6 +166,19 @@ struct TaskRowView: View {
         .accessibilityLabel(isExpanded ? "收起描述" : "展开描述")
     }
 
+    private var deleteButton: some View {
+        Button(role: .destructive, action: onDelete) {
+            Image(systemName: "trash")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.secondaryText)
+                .frame(width: 24, height: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("删除事项（可撤销）")
+        .accessibilityLabel("删除：\(task.title)")
+    }
+
     @ViewBuilder private var details: some View {
         Group {
             if hasDescription {
@@ -194,6 +210,8 @@ struct TaskRowView: View {
             Button("上移") { onReorder(-1) }
             Button("下移") { onReorder(1) }
         }
+        Divider()
+        Button("删除", role: .destructive, action: onDelete)
     }
 
     private func toggleExpand() {

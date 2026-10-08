@@ -14,6 +14,7 @@ struct QuadrantCardView: View {
     let onToggle: (TaskItem) -> Void
     let onToggleExpand: (TaskItem) -> Void
     let onEdit: (TaskItem) -> Void
+    let onDelete: (TaskItem) -> Void
     let onMove: (TaskItem, Quadrant) -> Void
     let onReorder: (TaskItem, Int) -> Void
     let draft: String
@@ -44,6 +45,7 @@ struct QuadrantCardView: View {
                         onToggle: { onToggle(task) },
                         onToggleExpand: { onToggleExpand(task) },
                         onEdit: { onEdit(task) },
+                        onDelete: { onDelete(task) },
                         onMove: { onMove(task, $0) },
                         onReorder: { onReorder(task, $0) },
                         onDropBefore: { items in
@@ -145,6 +147,7 @@ struct QuadrantCardView: View {
                         onToggle: { onToggle(task) },
                         onToggleExpand: { onToggleExpand(task) },
                         onEdit: { onEdit(task) },
+                        onDelete: { onDelete(task) },
                         onDropBefore: { _ in false },
                         onTargeted: { _ in }
                     )

@@ -71,6 +71,7 @@ struct PanelBodyView: View {
                     onToggle: onToggle,
                     onToggleExpand: { state.toggleExpanded($0) },
                     onEdit: onEdit,
+                    onDelete: { task in withAnimation(.easeOut(duration: 0.18)) { _ = state.delete(task) } },
                     onMove: { task, quadrant in withAnimation(.easeOut(duration: 0.2)) { state.move(task, to: quadrant) } },
                     onReorder: { task, delta in withAnimation(.easeOut(duration: 0.2)) { state.reorder(task, by: delta) } },
                     draft: state.drafts[quadrant] ?? "",
