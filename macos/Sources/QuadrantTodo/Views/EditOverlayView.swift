@@ -61,13 +61,17 @@ struct EditOverlayView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.opacity(0.18).contentShape(Rectangle()).onTapGesture(perform: backgroundTapped)
+                Color.black.opacity(0.18)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .padding(Metrics.panelInset)
+                    .contentShape(RoundedRectangle(cornerRadius: 14).inset(by: Metrics.panelInset))
+                    .onTapGesture(perform: backgroundTapped)
                 VStack(spacing: 0) {
                     editorFrame.padding(.horizontal, 20).padding(.top, 20)
                     footer
                 }
                 .frame(width: min(560, max(0, geometry.size.width - 24)), height: max(0, geometry.size.height - 24))
-                .background(RoundedRectangle(cornerRadius: 14).fill(Color(nsColor: .windowBackgroundColor)).shadow(color: .black.opacity(0.28), radius: 24, y: 10))
+                .background(RoundedRectangle(cornerRadius: 14).fill(Color(nsColor: .windowBackgroundColor)))
                 .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.hairline, lineWidth: 1))
                 .overlay { if confirmingLeave { leaveConfirmation } }
 

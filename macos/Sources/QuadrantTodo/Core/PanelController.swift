@@ -112,6 +112,15 @@ final class PanelController: NSObject {
             }
             .store(in: &cancellables)
 
+        state.$editing
+            .map { $0 == nil }
+            .removeDuplicates()
+            .sink { [weak self] hasShadow in
+                self?.panel.hasShadow = hasShadow
+                self?.panel.invalidateShadow()
+            }
+            .store(in: &cancellables)
+
         settings.$edge
             .removeDuplicates()
             .sink { [weak self] edge in
