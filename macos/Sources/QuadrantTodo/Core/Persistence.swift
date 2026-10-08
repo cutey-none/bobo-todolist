@@ -54,25 +54,20 @@ final class PersistenceController {
         return folder.appendingPathComponent("Tasks.store")
     }
 
-    /// 首次启动放入示例任务，让四象限一眼可见（可在设置里清空）。
+    /// 首次空库仅放入四条示例（每象限一条，其中一条已完成）；升级不改动已有事项。
     func seedSampleTasksIfNeeded(settings: SettingsStore) {
-        guard !settings.didSeedSampleTasks, repository.allTasks().isEmpty else { return }
-        settings.didSeedSampleTasks = true
+        guard !settings.didSeedSampleTasks else { return }
+        guard repository.allTasks().isEmpty else {
+            settings.didSeedSampleTasks = true
+            return
+        }
 
         let now = Date()
         let samples: [(String, Quadrant, Bool, Int)] = [
             ("修复发布阻塞问题", .importantUrgent, false, 0),
-            ("回复客户关键邮件", .importantUrgent, false, 1),
-            ("确认今日发布窗口", .importantUrgent, false, 2),
             ("制定下季度目标", .importantNotUrgent, false, 0),
-            ("学习 SwiftUI 动画", .importantNotUrgent, false, 1),
             ("预订会议室", .notImportantUrgent, false, 0),
-            ("回复合作方确认邮件", .notImportantUrgent, false, 1),
-            ("整理桌面文件", .notImportantNotUrgent, false, 0),
-            ("旧版界面回归检查", .importantUrgent, true, 0),
-            ("同步团队周报模板", .importantNotUrgent, true, 0),
-            ("归档上季度发票", .notImportantUrgent, true, 0),
-            ("清理订阅邮件", .notImportantNotUrgent, true, 0)
+            ("整理桌面文件", .notImportantNotUrgent, true, 0)
         ]
         for (offset, sample) in samples.enumerated() {
             let task = TaskItem(
@@ -85,6 +80,6 @@ final class PersistenceController {
             )
             context.insert(task)
         }
-        repository.save()
+        if repository.save() { settings.didSeedSampleTasks = true }
     }
 }
