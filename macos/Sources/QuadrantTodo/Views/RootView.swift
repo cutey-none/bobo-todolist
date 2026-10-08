@@ -18,13 +18,11 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            // 跟随窗口实际尺寸（拖动边缘调整大小时实时跟随），四周留出阴影边距。
-            bodyView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(Metrics.panelInset)
-                .opacity(state.isExpanded ? 1 : 0)
-                .scaleEffect(state.isExpanded ? 1 : 0.985, anchor: .center)
-                .animation(.easeOut(duration: 0.18), value: state.isExpanded)
+            if state.isExpanded {
+                bodyView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(Metrics.panelInset)
+            }
 
             RailView(
                 counts: activeCounts,

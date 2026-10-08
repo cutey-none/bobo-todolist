@@ -8,9 +8,7 @@ final class EdgePanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    /// 左侧 rail 需要让大部分窗口位于屏幕负坐标区域。
-    /// NSWindow 默认会把这种 frame 强制拉回屏幕内（通常是 x = 10），
-    /// 因此仅对这个受控贴边面板关闭系统 frame 约束。
+    /// 拖动窗口跨过工作区边缘时保留鼠标要求的位置；松手后由控制器吸附或夹回。
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         frameRect
     }
@@ -53,6 +51,7 @@ final class PanelController: NSObject {
             defer: false
         )
         hosting = NSHostingView(rootView: rootView)
+        hosting.sizingOptions = []
         super.init()
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
@@ -153,8 +152,6 @@ final class PanelController: NSObject {
 
     /// 按设置同步窗口与宿主视图尺寸，并保持当前展开 / 收起位置。
     private func applyPanelSize() {
-        let size = settings.panelSize
-        hosting.frame = NSRect(origin: .zero, size: size)
         applyLayout(expanded: state.isExpanded, animated: false)
     }
 
@@ -217,7 +214,7 @@ final class PanelController: NSObject {
 
         return (
             NSRect(x: x, y: y, width: size.width, height: size.height),
-            NSRect(x: collapsedX, y: collapsedY, width: size.width, height: size.height)
+            Self.collapsedFrame(edge: side, panelFrame: NSRect(x: collapsedX, y: collapsedY, width: size.width, height: size.height))
         )
     }
 
@@ -235,15 +232,17 @@ final class PanelController: NSObject {
         let screen = activeScreen
         let layout = frames(on: screen, edge: edge)
         let target = expanded ? layout.expanded : layout.collapsed
+        panel.minSize = .zero
+        panel.contentMinSize = .zero
+        hosting.frame = NSRect(origin: .zero, size: target.size)
         guard panel.frame != target else { return }
-        // AppKit 的 setFrame / 动画会把屏外窗口拉回工作区，尤其是上下边。
-        // 所有方向的收起都直接落位，保持只露出 rail，不让系统修正坐标。
+        // 小屏幕上的展开面板可能超出工作区，直接落位以避免系统修正坐标。
         if Self.requiresDirectPlacement(target, visibleFrame: screen.visibleFrame) {
             if panel.frame.size != target.size { panel.setContentSize(target.size) }
             panel.setFrameOrigin(target.origin)
             return
         }
-        if animated {
+        if animated && expanded {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = Metrics.expandDuration
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -252,6 +251,25 @@ final class PanelController: NSObject {
             }
         } else {
             panel.setFrame(target, display: true)
+        }
+    }
+
+    /// 收起窗口本身就是贴边条，不再把完整面板移出屏幕。
+    /// 这样上下边也不依赖系统是否允许窗口越过菜单栏 / Dock。
+    static func collapsedFrame(edge: EdgeSide, panelFrame: NSRect) -> NSRect {
+        switch edge {
+        case .left:
+            return NSRect(x: panelFrame.maxX - Metrics.railWidth, y: panelFrame.midY - Metrics.railHeight / 2,
+                          width: Metrics.railWidth, height: Metrics.railHeight)
+        case .right:
+            return NSRect(x: panelFrame.minX, y: panelFrame.midY - Metrics.railHeight / 2,
+                          width: Metrics.railWidth, height: Metrics.railHeight)
+        case .top:
+            return NSRect(x: panelFrame.midX - Metrics.railHeight / 2, y: panelFrame.minY,
+                          width: Metrics.railHeight, height: Metrics.railWidth)
+        case .bottom:
+            return NSRect(x: panelFrame.midX - Metrics.railHeight / 2, y: panelFrame.maxY - Metrics.railWidth,
+                          width: Metrics.railHeight, height: Metrics.railWidth)
         }
     }
 
@@ -354,30 +372,19 @@ final class PanelController: NSObject {
     /// 松手时只在鼠标或窗口确实进入屏幕边带时磁吸；否则保留自由位置。
     private func finishWindowDrag() {
         let mouse = screenMouseLocation()
-        let screen = NSScreen.screens.first(where: { $0.visibleFrame.contains(mouse) })
+        let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) })
             ?? panel.screen ?? activeScreen
         let visible = screen.visibleFrame
         let frame = panel.frame
-        let threshold = Metrics.edgeSnapThreshold
-
-        // 同时照顾两种直觉：把鼠标拖进屏幕边带，或把窗口外缘准确贴到边缘。
-        // 未进入边带时绝不按“最近边”吸附。
-        let candidates: [(EdgeSide, CGFloat)] = [
-            (.left, min(abs(mouse.x - visible.minX), abs(frame.minX - visible.minX))),
-            (.right, min(abs(visible.maxX - mouse.x), abs(visible.maxX - frame.maxX))),
-            (.top, min(abs(visible.maxY - mouse.y), abs(visible.maxY - frame.maxY))),
-            (.bottom, min(abs(mouse.y - visible.minY), abs(frame.minY - visible.minY)))
-        ]
-        let touchedEdges = candidates.filter { $0.1 <= threshold }
-        if let nearest = touchedEdges.min(by: { $0.1 < $1.1 }) {
-            let offset = nearest.0.isVertical ? frame.midY - visible.midY : frame.midX - visible.midX
+        if let edge = Self.snapEdge(mouse: mouse, frame: frame, visible: visible) {
+            let offset = edge.isVertical ? frame.midY - visible.midY : frame.midX - visible.midX
             settings.peekOffset = Double(max(-900, min(900, offset)))
             // 明确写入最终状态，再执行唯一一次收起布局。这里不依赖
             // AppState.collapse() 的 guard 或下一轮 runloop，避免跨边拖动时
             // edge / isDocked 的同步通知把最终 rail frame 覆盖掉。
             isApplyingDragSnap = true
             settings.isDocked = true
-            settings.edge = nearest.0
+            settings.edge = edge
             state.isPinned = false
             state.isExpanded = false
             state.focusedTaskID = nil
@@ -385,7 +392,7 @@ final class PanelController: NSObject {
             // 松手时鼠标通常仍压在刚出现的 rail 上；若立刻响应悬停，
             // 120ms 后窗口会重新展开，用户会误以为没有吸附。
             suppressHoverUntilMouseLeavesRail = true
-            applyLayout(expanded: false, edge: nearest.0, animated: true)
+            applyLayout(expanded: false, edge: edge, animated: true)
         } else {
             // 未进入磁吸区时保持用户位置，但夹在可见区内，避免窗口无法再次操作。
             let safeX = min(max(frame.minX, visible.minX), max(visible.minX, visible.maxX - frame.width))
@@ -395,6 +402,18 @@ final class PanelController: NSObject {
             settings.keepFloating(at: origin)
             if !state.isExpanded { state.expand() }
         }
+    }
+
+    /// 鼠标进入菜单栏或 Dock 区域后仍算触边，不能取绝对距离：
+    /// 物理屏幕边缘可能离 visibleFrame 超过磁吸阈值。
+    static func snapEdge(mouse: NSPoint, frame: NSRect, visible: NSRect) -> EdgeSide? {
+        let candidates: [(EdgeSide, CGFloat)] = [
+            (.left, min(max(0, mouse.x - visible.minX), abs(frame.minX - visible.minX))),
+            (.right, min(max(0, visible.maxX - mouse.x), abs(visible.maxX - frame.maxX))),
+            (.top, min(max(0, visible.maxY - mouse.y), abs(visible.maxY - frame.maxY))),
+            (.bottom, min(max(0, mouse.y - visible.minY), abs(frame.minY - visible.minY)))
+        ]
+        return candidates.filter { $0.1 <= Metrics.edgeSnapThreshold }.min(by: { $0.1 < $1.1 })?.0
     }
 
     private func clampedFloatingFrame(origin: CGPoint, size: CGSize) -> NSRect {
@@ -438,11 +457,13 @@ final class PanelController: NSObject {
     }
 
     private func tick() {
+        updateMouse(at: NSEvent.mouseLocation)
+    }
+
+    func updateMouse(at mouse: NSPoint, now: Date = Date()) {
         guard !hiddenByUser else { return }
         guard !isWindowDragging, resizeEdges.isEmpty else { return }
         guard settings.isDocked else { return }
-
-        let mouse = NSEvent.mouseLocation
 
         guard state.isExpanded else {
             outsideSince = nil
@@ -454,9 +475,9 @@ final class PanelController: NSObject {
             }
             // 悬停贴边条 120ms 后展开（PRD 4.4）。
             if hoveringRail {
-                let since = hoverSince ?? Date()
+                let since = hoverSince ?? now
                 hoverSince = since
-                if Date().timeIntervalSince(since) >= Metrics.hoverExpandDelay {
+                if now.timeIntervalSince(since) >= Metrics.hoverExpandDelay {
                     hoverSince = nil
                     state.expand()
                 }
@@ -479,12 +500,12 @@ final class PanelController: NSObject {
         if visible.contains(mouse) {
             outsideSince = nil
         } else {
-            let since = outsideSince ?? Date()
+            let since = outsideSince ?? now
             outsideSince = since
             // 正在看展开的描述、或有可撤销提示时多等一会儿，手滑出面板不会立刻收起。
-            let busy = state.expandedTaskID != nil || state.notice?.action != nil || !state.pendingCompletionIDs.isEmpty
+            let busy = state.expandedTaskID != nil || state.notice?.action != nil || !state.undoQueue.isEmpty || !state.pendingCompletionIDs.isEmpty
             let delay = busy ? Metrics.busyCollapseDelay : Metrics.hoverCollapseDelay
-            if Date().timeIntervalSince(since) >= delay {
+            if now.timeIntervalSince(since) >= delay {
                 state.collapse()
                 outsideSince = nil
             }
@@ -498,17 +519,7 @@ final class PanelController: NSObject {
 
     /// 收起态下贴边条在屏幕上的可点击区域。
     private func railScreenRect() -> NSRect {
-        let collapsed = frames(on: activeScreen).collapsed
-        switch settings.edge {
-        case .right:
-            return NSRect(x: collapsed.minX, y: collapsed.midY - Metrics.railHeight / 2, width: Metrics.railWidth, height: Metrics.railHeight).insetBy(dx: -2, dy: -2)
-        case .left:
-            return NSRect(x: collapsed.maxX - Metrics.railWidth, y: collapsed.midY - Metrics.railHeight / 2, width: Metrics.railWidth, height: Metrics.railHeight).insetBy(dx: -2, dy: -2)
-        case .top:
-            return NSRect(x: collapsed.midX - Metrics.railHeight / 2, y: collapsed.minY, width: Metrics.railHeight, height: Metrics.railWidth).insetBy(dx: -2, dy: -2)
-        case .bottom:
-            return NSRect(x: collapsed.midX - Metrics.railHeight / 2, y: collapsed.maxY - Metrics.railWidth, width: Metrics.railHeight, height: Metrics.railWidth).insetBy(dx: -2, dy: -2)
-        }
+        panel.frame.insetBy(dx: -2, dy: -2)
     }
 
     /// 悬停在贴边条上：120ms 防误触后展开。
