@@ -50,6 +50,8 @@ open build/QuadrantTodo.app
 
 在任一象限末尾输入待办并按回车保存；点圆圈完成。单击标题编辑事项和 Markdown 描述，点「保存」写入；单击行空白或箭头查看描述。退出后重开，任务和描述应仍在。
 
+全新数据目录首次启动时只创建 4 条示例：四个象限各一条，其中「整理桌面文件」已经完成（所以顶栏显示 3 个待办，Q4 显示「已完成 1」）。示例只在从未初始化的空库中创建一次。已有数据、升级后的数据以及用户主动清空后的空库都不会再次塞入示例，也不会为了凑成 4 条而删除或覆盖事项。
+
 ### 安装到「应用程序」
 
 先通过菜单栏右键 →「退出四象限待办」退出已运行的实例。以下命令从**仓库根目录**执行；若已安装旧版，先在 Finder 中将 `/Applications/QuadrantTodo.app` 移到废纸篓，避免 `cp -R` 合并旧包。移除应用包不会删除本地待办数据。
@@ -61,17 +63,28 @@ open /Applications/QuadrantTodo.app
 
 若没有系统「应用程序」目录的写入权限，可在 Finder 中安装到个人的 `~/Applications/`。以后启动安装后的应用即可，无需每次编译；不要同时运行源码目录与安装目录中的两个实例。
 
-### 更新与重建
+### 安全更新且保留待办
 
-先退出应用，再从仓库根目录执行（有本地修改时先自行提交或保存；不要强制覆盖）：
+先保存编辑内容并从菜单栏退出应用，再在仓库根目录双击 `Update.command`；也可以在终端执行：
 
 ```bash
-git pull --ff-only
-./macos/build.sh
-open macos/build/QuadrantTodo.app
+./Update.command
 ```
 
-如果使用安装版，还需按上面的安装步骤替换旧 `.app`，然后打开安装版。仅 `git pull` 不会更新已经生成或安装的应用。
+更新入口会：
+
+1. 拒绝在应用仍运行、源码有未提交修改、分支包含未推送提交或已经分叉时继续，绝不重置本地代码。
+2. 在 `~/Library/Application Support/QuadrantTodoBackups/` 建立带时间的备份，包含整个数据目录（数据库、SQLite 辅助文件、图片附件）、设置；若已有旧应用，也一并保留。
+3. 只接受当前分支的远程快进更新，在独立临时目录构建并验签；构建失败时旧应用不动。
+4. 构建成功后才替换应用并重新打开。优先更新 `/Applications/QuadrantTodo.app`，其次是 `~/Applications/QuadrantTodo.app`，否则更新仓库里的 `macos/build/QuadrantTodo.app`。
+
+它不会移动或改写 `~/Library/Application Support/QuadrantTodo/` 中的现有待办数据。应用启动时仍会执行兼容迁移，但迁移沿用仓库的本地持久化与失败保护规则。若要指定其他应用位置：
+
+```bash
+./Update.command --app "$HOME/Applications/QuadrantTodo.app"
+```
+
+有意只重建当前代码、不从 GitHub 拉取时使用 `./Update.command --no-pull`。如果 `/Applications` 没有写入权限，脚本不会索要管理员密码；可把应用安装到 `~/Applications/` 后用上面的 `--app` 路径更新。
 
 ### 常见问题
 
@@ -81,10 +94,11 @@ open macos/build/QuadrantTodo.app
 - 打开后看不到窗口：先检查菜单栏图标和屏幕贴边条；全局快捷键可能与其他软件冲突，可在菜单栏右键 →「设置…」换预设。
 - macOS 阻止打开：脚本只有 ad-hoc 签名，没有 Developer ID 公证。从自己信任的源码本机重新构建；如仍被拦截，按系统提示在「系统设置 → 隐私与安全性」中确认打开。不要全局关闭 Gatekeeper。签名警告不代表已通过系统安全检查。
 - 找不到新功能：确认已重新构建并替换安装版，而且没有旧实例仍在运行。
+- 更新提示“源码有尚未提交的修改”或“本地有未推送提交”：先提交/推送自己的改动，或另建一个干净 clone；更新入口不会替你覆盖本地内容。
 
 ## 数据备份与换机
 
-默认数据目录是 `~/Library/Application Support/QuadrantTodo/`，包含 `Tasks.store`、可能存在的 SQLite 辅助文件以及 `Attachments/` 图片目录。设置中的数据位置入口可在 Finder 中定位数据库。设置保存在本机 UserDefaults，仓库与 `.app` **不包含你的任务数据**，也不会自动同步到另一台电脑。
+默认数据目录是 `~/Library/Application Support/QuadrantTodo/`，包含 `Tasks.store`、可能存在的 SQLite 辅助文件以及 `Attachments/` 图片目录。设置中的数据位置入口可在 Finder 中定位数据库。设置保存在本机 UserDefaults，仓库与 `.app` **不包含你的任务数据**，替换 `.app` 或更新源码不会删除待办，也不会自动同步到另一台电脑。
 
 如需迁移任务：先在两台电脑退出应用，备份两边的数据目录，再将旧电脑的**整个 `QuadrantTodo/` 数据目录**复制到新电脑的同一路径（确认后替换，不能只复制数据库而遗漏图片）。新电脑使用同版本或更新版本的应用打开；窗口位置和快捷键等设置需重新设置。Markdown 中自行填写的绝对图片路径 / `file://` 路径还需另行迁移对应文件；应用插入的相对附件随 `Attachments/` 一起迁移。
 
@@ -162,6 +176,8 @@ macos/
     Views/                     贴边条、面板、象限卡片、任务行、编辑浮层、设置
   Resources/Info.plist         LSUIElement / 版本信息
   build.sh                     构建并组装 .app
+  upgrade.sh                   备份数据、拉取、隔离构建并安全替换应用
+Update.command                 可双击运行的更新入口
 ```
 
 ## 已知限制（v0.1）

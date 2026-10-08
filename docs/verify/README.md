@@ -1,5 +1,16 @@
 # 功能验证记录（v0.1）
 
+## 2026-10-08 默认示例与安全更新
+
+| 场景 | 验证结果 | 证据 |
+| --- | --- | --- |
+| 全新首次启动 | 仅创建 4 条示例，四个象限各一条；3 条未完成、1 条已完成，顶栏显示“3 个待办” | `61-four-default-samples.png`；独立 SQLite 查询 |
+| 已有数据启动 | 仅保留测试用户事项及 Markdown 原文，没有补充、删减或覆盖；用户清空后也不重新播种 | `SampleTaskTests.testExistingDataIsUnchangedAndEmptyingItDoesNotReseed` |
+| 示例保存失败 | 不把初始化标记成成功，回滚后可重试；成功后固定为 4 条 | `SampleTaskTests.testFailedSeedingCanBeRetried` |
+| 安全更新 | 临时 Git 远程与模拟应用验证：应用运行中拒绝；构建失败保留旧应用；脏源码和未推送提交拒绝；远程快进后替换成功；数据库、WAL、附件、设置及旧应用均在备份中逐字节一致 | `zsh macos/Tests/upgrade-tests.sh` |
+
+`swift test` 共 29 项通过。`macos/build.sh` release 构建成功并更新 `macos/build/QuadrantTodo.app`。安全更新不会为了采用新的默认示例而改动已有用户数据，所以从旧版升级的用户会继续保留原来的所有事项。
+
 ## 2026-10-08 使用问题修复
 
 验证使用 debug 可执行文件、`QT_DATA_DIR` 独立测试数据库、`QT_UI_SCRIPT` 投递真实 AppKit 点击事件与窗口截图。编辑和删除测试设置 `QT_KEEP_OPEN=1`，防止截图等待期间自动收起；未改动用户真实待办数据。

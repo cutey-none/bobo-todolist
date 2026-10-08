@@ -8,7 +8,14 @@ APP_DOMAIN=com.cutey.quadranttodo
 TARGET=""
 PULL=1
 OPEN_APP=1
+WORK_DIR=""
+STAGED_DIR=""
 fail() { print -u2 -- "$*"; exit 1; }
+cleanup() {
+    [[ -z "$STAGED_DIR" || ! -d "$STAGED_DIR" ]] || rm -rf -- "$STAGED_DIR"
+    [[ -z "$WORK_DIR" || ! -d "$WORK_DIR" ]] || rm -rf -- "$WORK_DIR"
+}
+trap cleanup EXIT
 while (( $# )); do
     case "$1" in
         --app) (( $# >= 2 )) || fail '--app 后需要应用路径'; TARGET="$2"; shift 2 ;;
@@ -65,7 +72,6 @@ if (( PULL )); then
 fi
 # 隔离构建：不覆盖现有应用，也不把编译生成物写入源码树。
 WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/quadrant-upgrade.XXXXXX")
-trap 'print -- "构建工作目录：$WORK_DIR"' EXIT
 git archive HEAD | tar -x -C "$WORK_DIR"
 zsh "$WORK_DIR/macos/build.sh"
 NEW_APP="$WORK_DIR/macos/build/$APP_NAME"
@@ -82,6 +88,7 @@ if ! mv "$STAGED_DIR/$APP_NAME" "$TARGET"; then
     fail '替换失败，已尝试还原旧应用；数据备份仍保留。'
 fi
 rmdir "$STAGED_DIR"
+STAGED_DIR=""
 print -- "更新完成：$TARGET"
 print '待办数据库、图片附件和设置未被替换。备份及旧应用已保留。'
 if (( OPEN_APP )); then open "$TARGET"; fi

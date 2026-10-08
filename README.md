@@ -18,6 +18,16 @@ macOS 原生贴边待办工具，使用 SwiftUI + SwiftData，任务与 Markdown
 
 3. 应用没有 Dock 图标：点击顶部菜单栏的待办图标，或按 `⌥Space` 展开；默认屏幕右侧也有贴边条，悬停即可展开。在象限末尾输入待办，按回车保存。
 
+全新数据首次启动只创建 4 条示例（每个象限一条，其中一条已完成）。这一步只发生一次；已有数据升级时不会添加、删除或覆盖任何待办。
+
+以后更新时，先保存并退出应用，然后在仓库根目录双击 `Update.command`，或执行：
+
+```bash
+./Update.command
+```
+
+更新入口会备份数据库、图片附件、设置及旧应用，拉取 GitHub 更新并构建，成功后才替换应用。详细说明见 [macOS 构建指南](macos/README.md#安全更新且保留待办)。
+
 构建成功会显示 `已生成：…/macos/build/QuadrantTodo.app`。不需要 Homebrew、Node.js、Python、CodeGraph、第三方包或 Apple Developer 付费账号；构建脚本会进行本机 ad-hoc 签名，不是公证发行包。
 
 完整的安装、更新、常见问题、数据备份与开发说明见 [macos/README.md](macos/README.md)。交互规格见 [产品文档](docs/prd/quadrant-todo-ui-prd.md)，运行验证记录见 [验证文档](docs/verify/README.md)。
