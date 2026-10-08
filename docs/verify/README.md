@@ -208,3 +208,16 @@ Markdown 方框只渲染原文状态，不是可交互子任务。原文存储�
 - `68-editor-edit-no-outer-shadow.png`：切换到 Markdown 编辑状态后外沿同样无阴影，标题、描述、工具栏与保存/取消入口正常显示。
 
 验证仅打开并切换模式，没有修改事项内容；关闭编辑后恢复主面板的普通窗口阴影。运行 `macos/build.sh` 成功，应用包已更新。
+
+## 2026-10-09：直接粘贴图片与附件清理
+
+使用独立 release 验证应用和 `QT_DATA_DIR=/tmp/quadrant-paste-verification/data`，不修改用户原有事项。素材为用户提供的编辑界面截图，在预览中拷贝后，在描述编辑框实际按 ⌘V。
+
+- `69-paste-image-markdown.png`：无需文件选择器，⌘V 在光标处自动插入 `attachments/<UUID>.png` 图片引用；磁盘实际生成 194691 字节 PNG。
+- `70-pasted-image-preview.png`：切换预览后，本地附件正确显示。
+- `71-pasted-image-after-relaunch.png`：保存事项并重新启动独立应用，图片仍可显示。
+- `72-undo-restores-pasted-image.png`：删除后点击撤销，展开事项仍可查看图片；再次删除并等待 8 秒后，附件目录为空。
+
+修复纯文本 NSTextView 默认禁用仅含图片的粘贴命令，以及同时含文字表示的图片被当作纯文本的问题。删除附件时保留其他事项和待撤销事项的共享引用，只删除应用附件，不删除外部原文件。放弃编辑清理本次新建但未保存的附件；正常退出结束待删除事项的撤销期并清理附件。强制终止进程不保证执行退出清理。
+
+验证：`swift test --package-path macos` 全部 34 项通过；`macos/build.sh` release 构建成功。构建仅有既存 RootView.swift 未使用 withAnimation 返回值的警告。
