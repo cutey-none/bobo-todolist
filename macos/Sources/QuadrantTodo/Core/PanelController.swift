@@ -236,9 +236,9 @@ final class PanelController: NSObject {
         let layout = frames(on: screen, edge: edge)
         let target = expanded ? layout.expanded : layout.collapsed
         guard panel.frame != target else { return }
-        // macOS 会把负 x 的 setFrame 动画强制拉回屏幕内。左侧收起必须
-        // 用 setFrameOrigin 直接落位，才能真正只露出最右侧 rail。
-        if target.minX < screen.visibleFrame.minX {
+        // AppKit 的 setFrame / 动画会把屏外窗口拉回工作区，尤其是上下边。
+        // 所有方向的收起都直接落位，保持只露出 rail，不让系统修正坐标。
+        if Self.requiresDirectPlacement(target, visibleFrame: screen.visibleFrame) {
             if panel.frame.size != target.size { panel.setContentSize(target.size) }
             panel.setFrameOrigin(target.origin)
             return
@@ -253,6 +253,10 @@ final class PanelController: NSObject {
         } else {
             panel.setFrame(target, display: true)
         }
+    }
+
+    static func requiresDirectPlacement(_ frame: NSRect, visibleFrame: NSRect) -> Bool {
+        !visibleFrame.contains(frame)
     }
 
     /// 收起态贴边条由 SwiftUI 手势驱动，使整个窗口跟随鼠标。
