@@ -227,7 +227,11 @@ struct EditOverlayView: View {
     private var footer: some View {
         HStack(spacing: 10) {
             Button(role: .destructive, action: deleteTask) {
-                Label("删除", systemImage: "trash").font(.system(size: 12))
+                Label("删除事项", systemImage: "trash").font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.red.opacity(0.10)))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.red.opacity(0.3), lineWidth: 1))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.red)
