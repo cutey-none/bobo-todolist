@@ -193,6 +193,16 @@ struct TaskRepository {
         return save()
     }
 
+    /// 清理指定附件，保留其他事项或仍可撤销的删除所引用的文件。
+    func removeUnusedAttachments(_ sources: [String], preserving notes: [String] = []) {
+        // fetch 失败时不进行清理，避免误删无法读取的事项附件。
+        guard let tasks = try? context.fetch(FetchDescriptor<TaskItem>()) else { return }
+        let references = tasks.compactMap(\.note) + notes
+        for source in Set(sources) where !references.contains(where: { $0.contains(source) }) {
+            attachments.remove(source)
+        }
+    }
+
     func progress(for taskID: UUID) -> [ProgressEntry] {
         let descriptor = FetchDescriptor<ProgressEntry>(predicate: #Predicate { $0.taskID == taskID },
                                                         sortBy: [SortDescriptor(\.createdAt, order: .reverse)])

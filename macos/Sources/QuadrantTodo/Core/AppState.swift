@@ -187,8 +187,18 @@ final class AppState: ObservableObject {
         undoQueue.removeAll { $0.id == entry.id }
     }
 
+    /// 退出后不再能撤销，立即回收待删除附件。
+    func finishPendingDeletes() {
+        for id in undoQueue.map(\.id) { expireUndo(id) }
+    }
+
     private func expireUndo(_ id: UUID) {
+        let expired = undoQueue.filter { $0.id == id }
         undoQueue.removeAll { $0.id == id }
+        repository.removeUnusedAttachments(
+            expired.flatMap { MarkdownDocument.imageSources(in: $0.snapshot.note ?? "") },
+            preserving: undoQueue.compactMap { $0.snapshot.note }
+        )
         // 所有撤销窗口都结束后，旧 progress 记录才不再需要保留。
         if undoQueue.isEmpty { repository.purgeOrphanProgress() }
     }

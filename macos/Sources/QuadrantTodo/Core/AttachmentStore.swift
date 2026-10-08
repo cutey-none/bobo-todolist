@@ -29,7 +29,7 @@ struct AttachmentStore {
     func url(for source: String) -> URL? {
         if source.hasPrefix(Self.prefix) {
             let name = String(source.dropFirst(Self.prefix.count))
-            guard !name.isEmpty, !name.contains("/") else { return nil }
+            guard !name.isEmpty, name != ".", name != "..", !name.contains("/") else { return nil }
             return directory.appendingPathComponent(name)
         }
         if let url = URL(string: source), url.isFileURL { return url }
@@ -47,6 +47,19 @@ struct AttachmentStore {
         guard let image = NSImage(contentsOf: url) else { return nil }
         Self.cache.setObject(image, forKey: url as NSURL)
         return image
+    }
+
+    /// 只删除应用拥有的附件；绝不删除用户原始文件。
+    func remove(_ source: String) {
+        guard source.hasPrefix(Self.prefix), let url = url(for: source) else { return }
+        do {
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+            Self.cache.removeObject(forKey: url as NSURL)
+        } catch {
+            NSLog("QuadrantTodo: 删除图片失败 \(error.localizedDescription)")
+        }
     }
 
     private static let cache = NSCache<NSURL, NSImage>()

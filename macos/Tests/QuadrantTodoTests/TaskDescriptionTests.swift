@@ -1,3 +1,4 @@
+import AppKit
 import SwiftData
 import XCTest
 @testable import QuadrantTodo
@@ -102,6 +103,80 @@ final class TaskDescriptionTests: XCTestCase {
         XCTAssertEqual(blocks[1], .paragraph("第一条进度"))
         guard case .image(_, let source) = blocks[2] else { return XCTFail("缺少图片") }
         XCTAssertEqual(repository.attachments.data(for: source), Data([0x04, 0x05]))
+    }
+
+    @MainActor
+    func testPastingImageWithTextRepresentationInsertsImage() throws {
+        let pasteboard = NSPasteboard.general
+        let previous = pasteboard.pasteboardItems?.map { item in
+            item.types.compactMap { type in item.data(forType: type).map { (type, $0) } }
+        } ?? []
+        defer {
+            pasteboard.clearContents()
+            let items = previous.map { representations in
+                let item = NSPasteboardItem()
+                for (type, data) in representations { item.setData(data, forType: type) }
+                return item
+            }
+            pasteboard.writeObjects(items)
+        }
+        let image = NSImage(size: NSSize(width: 20, height: 20))
+        image.lockFocus()
+        NSColor.red.setFill()
+        NSBezierPath(rect: NSRect(x: 0, y: 0, width: 20, height: 20)).fill()
+        image.unlockFocus()
+        pasteboard.clearContents()
+        pasteboard.setData(try XCTUnwrap(image.tiffRepresentation), forType: .tiff)
+        let textView = PastingTextView()
+        let pasteMenu = NSMenuItem(title: "粘贴", action: #selector(NSTextView.paste(_:)), keyEquivalent: "v")
+        XCTAssertTrue(textView.validateUserInterfaceItem(pasteMenu))
+        pasteboard.setString("image.png", forType: .string)
+        var pasted = false
+        textView.onPasteImage = { _ in pasted = true }
+        textView.paste(nil)
+        XCTAssertTrue(pasted)
+        XCTAssertEqual(textView.string, "")
+
+        pasteboard.clearContents()
+        pasteboard.setString("普通文字", forType: .string)
+        pasted = false
+        textView.paste(nil)
+        XCTAssertFalse(pasted)
+        XCTAssertEqual(textView.string, "普通文字")
+    }
+
+    @MainActor
+    func testAttachmentCleanupPreservesUndoSharedFilesAndExternalOriginals() throws {
+        let (context, repository) = try makeRepository()
+        let source = try XCTUnwrap(repository.attachments.save(Data([1, 2, 3])))
+        let markdown = "![图片](\(source))"
+        let task = TaskItem(title: "删除图片", note: markdown)
+        context.insert(task)
+        XCTAssertTrue(repository.save())
+        let snapshot = try XCTUnwrap(repository.delete(task))
+        repository.removeUnusedAttachments([source], preserving: [snapshot.note!])
+        XCTAssertNotNil(repository.attachments.data(for: source))
+        XCTAssertTrue(repository.restore(snapshot))
+        repository.removeUnusedAttachments([source])
+        XCTAssertNotNil(repository.attachments.data(for: source))
+
+        let shared = TaskItem(title: "共用图片", note: markdown)
+        context.insert(shared)
+        let restored = try XCTUnwrap(repository.allTasks().first { $0.id == snapshot.id })
+        XCTAssertNotNil(repository.delete(restored))
+        repository.removeUnusedAttachments([source])
+        XCTAssertNotNil(repository.attachments.data(for: source))
+        XCTAssertNotNil(repository.delete(shared))
+        repository.removeUnusedAttachments([source])
+        XCTAssertNil(repository.attachments.data(for: source))
+
+        try FileManager.default.createDirectory(at: attachmentDirectory, withIntermediateDirectories: true)
+        let original = attachmentDirectory.appendingPathComponent("original.png")
+        try Data([4]).write(to: original)
+        repository.attachments.remove(original.path)
+        repository.attachments.remove(original.absoluteString)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: original.path))
+        XCTAssertNil(repository.attachments.url(for: "attachments/.."))
     }
 
     @MainActor

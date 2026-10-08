@@ -107,13 +107,20 @@ struct MarkdownTextView: NSViewRepresentable {
     }
 }
 
-private final class PastingTextView: NSTextView {
+final class PastingTextView: NSTextView {
     var onPasteImage: ((NSImage) -> Void)?
     var placeholder = ""
 
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        // 纯文本 NSTextView 默认禁用仅含图片的粘贴，⌘V 因此到不了 paste(_:).
+        if item.action == #selector(paste(_:)), isEditable,
+           NSImage.canInit(with: .general) { return true }
+        return super.validateUserInterfaceItem(item)
+    }
+
     override func paste(_ sender: Any?) {
         let pasteboard = NSPasteboard.general
-        if pasteboard.string(forType: .string) == nil, let image = NSImage(pasteboard: pasteboard) {
+        if let image = NSImage(pasteboard: pasteboard) {
             onPasteImage?(image)
             return
         }

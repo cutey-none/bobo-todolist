@@ -22,6 +22,7 @@ struct EditOverlayView: View {
     @State private var markdown: String
     @State private var mode: Mode
     @State private var importing = false
+    @State private var draftAttachments: [String] = []
     @State private var message: String?
     @State private var titleProblem: String?
     @State private var saveFailed = false
@@ -103,7 +104,10 @@ struct EditOverlayView: View {
             // Esc：确认框已打开时等同「继续编辑」。
             if confirmingLeave { confirmingLeave = false } else { requestLeave() }
         }
-        .onDisappear { preview = nil }
+        .onDisappear {
+            preview = nil
+            repository.removeUnusedAttachments(draftAttachments)
+        }
     }
 
     // MARK: - 编辑外框
@@ -349,6 +353,7 @@ struct EditOverlayView: View {
     /// 图片文件立即写入附件目录，Markdown 引用随「保存」一起写入事项。
     private func insertImage(_ data: Data) {
         guard let source = repository.attachments.save(data) else { message = "图片保存失败，请重试。"; return }
+        draftAttachments.append(source)
         let line = "![图片](\(source))"
         if !editor.insertBlock(line) {
             markdown += (markdown.isEmpty || markdown.hasSuffix("\n") ? "" : "\n") + line + "\n"
