@@ -5,6 +5,7 @@ enum MarkdownBlock: Equatable {
     case heading(level: Int, text: String)
     case paragraph(String)
     case bullet(String)
+    case task(checked: Bool, text: String)
     case ordered(number: Int, text: String)
     case quote(String)
     case code(String)
@@ -66,7 +67,11 @@ enum MarkdownDocument {
                 blocks.append(image)
             } else if let text = bulletText(in: line) {
                 flushParagraph()
-                blocks.append(.bullet(text))
+                if let task = taskItem(in: text) {
+                    blocks.append(task)
+                } else {
+                    blocks.append(.bullet(text))
+                }
             } else if let ordered = ordered(in: line) {
                 flushParagraph()
                 blocks.append(ordered)
@@ -87,6 +92,8 @@ enum MarkdownDocument {
                 return text
             case .ordered(let number, let text):
                 return "\(number). \(text)"
+            case .task(_, let text):
+                return text
             case .image:
                 return nil
             }
@@ -113,6 +120,13 @@ enum MarkdownDocument {
             return String(line.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces)
         }
         return nil
+    }
+
+    private static func taskItem(in text: String) -> MarkdownBlock? {
+        guard text.hasPrefix("[ ]") || text.hasPrefix("[x]") || text.hasPrefix("[X]") else { return nil }
+        let rest = text.dropFirst(3)
+        guard rest.isEmpty || rest.first?.isWhitespace == true else { return nil }
+        return .task(checked: !text.hasPrefix("[ ]"), text: rest.trimmingCharacters(in: .whitespaces))
     }
 
     private static func ordered(in line: String) -> MarkdownBlock? {

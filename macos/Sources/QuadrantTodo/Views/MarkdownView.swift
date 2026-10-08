@@ -27,6 +27,15 @@ struct MarkdownView: View {
             inline(text).font(.system(size: fontSize))
         case .bullet(let text):
             listItem(marker: "•", text: text)
+        case .task(let checked, let text):
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: checked ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(checked ? Theme.accent : Theme.secondaryText)
+                    .accessibilityLabel(checked ? "已勾选" : "未勾选")
+                inline(text)
+            }
+            .font(.system(size: fontSize))
+            .padding(.leading, 4)
         case .ordered(let number, let text):
             listItem(marker: "\(number).", text: text)
         case .quote(let text):

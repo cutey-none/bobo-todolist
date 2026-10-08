@@ -2,6 +2,20 @@ import XCTest
 @testable import QuadrantTodo
 
 final class MarkdownDocumentTests: XCTestCase {
+    func testTaskListMarkersRenderWithoutBecomingTaskModels() {
+        let markdown = "- [ ] 未完成\n* [x] 已完成\n+ [X] **强调**\n- 普通列表\n- [ ]\n- [x]不是任务标记"
+        XCTAssertEqual(MarkdownDocument.parse(markdown), [
+            .task(checked: false, text: "未完成"),
+            .task(checked: true, text: "已完成"),
+            .task(checked: true, text: "**强调**"),
+            .bullet("普通列表"),
+            .task(checked: false, text: ""),
+            .bullet("[x]不是任务标记")
+        ])
+        XCTAssertEqual(MarkdownDocument.plainText("- [ ] 未完成\n- [x] 已完成"), "未完成\n已完成")
+        XCTAssertEqual(MarkdownDocument.parse("```\n- [ ] 代码\n```"), [.code("- [ ] 代码")])
+    }
+
     func testParsesDescriptionBlocks() {
         let markdown = """
         ### 关键信息
