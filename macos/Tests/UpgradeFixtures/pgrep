@@ -1,0 +1,2 @@
+#!/bin/zsh
+[[ "${QT_TEST_RUNNING:-0}" == 1 ]]

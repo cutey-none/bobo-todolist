@@ -1,0 +1,7 @@
+#!/bin/zsh
+if [[ "$1" == read ]]; then exit 0; fi
+if [[ "$1" == export ]]; then
+    cp "$QT_TEST_SETTINGS" "$3"
+else
+    exit 1
+fi
