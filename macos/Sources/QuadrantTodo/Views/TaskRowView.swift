@@ -54,7 +54,7 @@ struct TaskRowView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             dragHandle
             completionButton
             titleButton
@@ -102,12 +102,12 @@ struct TaskRowView: View {
                     .strikethrough(task.isCompleted, color: Theme.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                if titleHovering || isFocused {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(Theme.secondaryText)
-                        .accessibilityHidden(true)
-                }
+                    .layoutPriority(1)
+                Image(systemName: "pencil")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+                    .opacity(titleHovering || isFocused ? 1 : 0)
+                    .accessibilityHidden(true)
             }
             .padding(.horizontal, 5)
             .padding(.vertical, 3)
@@ -120,8 +120,10 @@ struct TaskRowView: View {
         .buttonStyle(.plain)
         // 标题优先占宽度，行空白只拿剩余部分；放不下时才截断。
         .layoutPriority(1)
-        .onHover { titleHovering = $0 }
-        .help(tooltipText)
+        .background(TaskTitleHoverRegion { titleHovering = $0 })
+        .anchorPreference(key: TaskTitleTooltipKey.self, value: .bounds) { anchor in
+            titleHovering || isFocused ? TaskTitleTooltip(title: task.title, bounds: anchor) : nil
+        }
         .accessibilityLabel("编辑：\(task.title)")
     }
 
@@ -142,7 +144,7 @@ struct TaskRowView: View {
         Image(systemName: "line.3.horizontal")
             .font(.system(size: 9, weight: .medium))
             .foregroundStyle(Theme.tertiaryText)
-            .frame(width: 12, height: 32)
+            .frame(width: 10, height: 32)
             .contentShape(Rectangle())
             .opacity(rowHovering && !task.isCompleted ? 1 : 0)
             .modifier(RowDragSource(task: task, isEnabled: !task.isCompleted))
@@ -157,7 +159,7 @@ struct TaskRowView: View {
             Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Theme.secondaryText)
-                .frame(minWidth: 28, minHeight: 32)
+                .frame(width: 20, height: 32)
                 .contentShape(Rectangle())
                 .opacity(hasDescription || isExpanded || rowHovering || isFocused ? 1 : 0)
         }
@@ -216,18 +218,6 @@ struct TaskRowView: View {
 
     private func toggleExpand() {
         withAnimation(.easeOut(duration: 0.18)) { onToggleExpand() }
-    }
-
-    private var tooltipText: String {
-        var lines = [task.title]
-        let description = MarkdownDocument.plainText(task.note ?? "")
-        if !description.isEmpty {
-            let limit = 120
-            lines.append(description.count > limit ? String(description.prefix(limit)) + "…" : description)
-        }
-        lines.append(task.isCompleted ? "\(task.quadrant.name) · 已完成" : task.quadrant.name)
-        lines.append("单击标题编辑 · 单击空白处展开描述")
-        return lines.joined(separator: "\n")
     }
 }
 

@@ -52,6 +52,9 @@ struct RootView: View {
         .overlay(alignment: .bottom) { undoToast }
         .overlay(alignment: .top) { noticeBanner }
         .animation(.easeOut(duration: 0.18), value: state.notice)
+        .overlayPreferenceValue(TaskTitleTooltipKey.self) { tooltip in
+            TaskTitleTooltipOverlay(tooltip: tooltip)
+        }
         .overlay { editOverlay }
         .onAppear(perform: installEventMonitor)
         .onDisappear { removeEventMonitor() }
