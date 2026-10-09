@@ -5,6 +5,45 @@ import SwiftUI
 
 @MainActor
 final class PanelPlacementTests: XCTestCase {
+    func testStationaryPointerAtDockedOuterEdgeDoesNotCycle() {
+        _ = NSApplication.shared
+        for edge in [EdgeSide.left, .right, .top, .bottom] {
+            let domain = "EdgeHover.\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: domain)!
+            defer { defaults.removePersistentDomain(forName: domain) }
+            let settings = SettingsStore(defaults: defaults)
+            settings.edge = edge
+            let persistence = PersistenceController(inMemory: true)
+            let state = AppState(persistence: persistence, settings: settings)
+            let root = RootView(state: state, settings: settings).modelContainer(persistence.container)
+            let controller = PanelController(state: state, settings: settings, rootView: AnyView(root))
+            state.controller = controller
+            defer { controller.panel.orderOut(nil) }
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            let rail = controller.panel.frame
+            let mouse: NSPoint
+            switch edge {
+            case .left: mouse = NSPoint(x: rail.minX + 1, y: rail.midY)
+            case .right: mouse = NSPoint(x: rail.maxX - 1, y: rail.midY)
+            case .top: mouse = NSPoint(x: rail.midX, y: rail.maxY - 1)
+            case .bottom: mouse = NSPoint(x: rail.midX, y: rail.minY + 1)
+            }
+            let start = Date()
+            controller.updateMouse(at: mouse, now: start)
+            controller.updateMouse(at: mouse, now: start.addingTimeInterval(0.2))
+            XCTAssertTrue(state.isExpanded)
+            controller.applyLayout(animated: false)
+            for step in 1...20 {
+                controller.updateMouse(at: mouse, now: start.addingTimeInterval(0.2 + Double(step) * 0.2))
+                XCTAssertTrue(state.isExpanded, "\(edge) cycled at stationary pointer step \(step)")
+            }
+            let outside = NSPoint(x: -10000, y: -10000)
+            controller.updateMouse(at: outside, now: start.addingTimeInterval(5))
+            controller.updateMouse(at: outside, now: start.addingTimeInterval(6))
+            XCTAssertFalse(state.isExpanded, "\(edge) must still collapse after leaving the edge region")
+        }
+    }
+
     func testPanelDisplayDoesNotFollowFocusOnAnotherDisplay() {
         let screens = [NSRect(x: 0, y: 0, width: 1920, height: 1080),
                        NSRect(x: 1920, y: 0, width: 1440, height: 900)]

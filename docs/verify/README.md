@@ -252,3 +252,13 @@ Markdown 方框只渲染原文状态，不是可交互子任务。原文存储�
 - 验证环境 `NSScreen.screens` 仅返回一块 1920×1080 屏幕，因此双屏覆盖使用屏幕几何回归测试，并未把单屏截图当作真实双屏验证证据。
 
 验证：`swift test --package-path macos` 全部 38 项通过；`macos/build.sh` release 构建成功。仅有既存 RootView.swift 未使用 withAnimation 返回值的警告。
+
+## 2026-10-09：停靠边缘反复收起 / 展开
+
+原因是收起贴边条触及屏幕边缘，而展开面板留有 10pt 的 screenMargin。鼠标停在外沿空隙时，展开态认为鼠标已离开，收起后又认为鼠标进入了贴边条，产生循环。修复仅将停靠侧的空隙纳入展开态停留范围，真正离开面板及该边缘区域后仍按原延迟收起。
+
+- 回归命令：`swift test --package-path macos --filter testStationaryPointerAtDockedOuterEdgeDoesNotCycle`。真实 NSPanel / RootView 通过生产鼠标轮询路径注入固定位置与时间：修复前四边均在第 4、5 次检查发生收起（8 个断言失败）；修复后四边连续 20 次检查保持展开，随后移出可正常收起。
+- `76-docked-edge-hover-region.png`：独立 release 应用的实际展开布局截图，确认内容与按钮正常呈现。截图使用独立数据及 QT_KEEP_OPEN，仅作为布局证据，不能作为真实硬件悬停成功的证据；循环问题由上述不启用 KEEP_OPEN 的回归测试验证。
+- 没有保留调试日志或临时生产代码。
+
+验证：全部 39 项 Swift 测试通过；`macos/build.sh` release 构建成功，用户应用已重启。仅有既存 RootView.swift 未使用 withAnimation 返回值的警告。

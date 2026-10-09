@@ -549,7 +549,26 @@ final class PanelController: NSObject {
 
     private func visibleFrameOfPanel() -> NSRect {
         let screen = activeScreen.visibleFrame
-        return panel.frame.intersection(screen).insetBy(dx: -2, dy: -2)
+        var visible = panel.frame.intersection(screen)
+        // The collapsed rail touches the display edge, while the expanded
+        // window leaves a screenMargin gap. Keep that gap inside the hover
+        // region, otherwise a stationary pointer alternates between opening
+        // the rail and being considered outside the expanded panel.
+        if settings.isDocked, !visible.isNull {
+            switch settings.edge {
+            case .left:
+                visible.size.width = visible.maxX - screen.minX
+                visible.origin.x = screen.minX
+            case .right:
+                visible.size.width = screen.maxX - visible.minX
+            case .top:
+                visible.size.height = screen.maxY - visible.minY
+            case .bottom:
+                visible.size.height = visible.maxY - screen.minY
+                visible.origin.y = screen.minY
+            }
+        }
+        return visible.insetBy(dx: -2, dy: -2)
     }
 
     /// 收起态下贴边条在屏幕上的可点击区域。
