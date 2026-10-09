@@ -5,6 +5,30 @@ import SwiftUI
 
 @MainActor
 final class PanelPlacementTests: XCTestCase {
+    func testExpandedEdgesReceiveMouseHits() {
+        _ = NSApplication.shared
+        let domain = "ResizeHits.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let settings = SettingsStore(defaults: defaults)
+        settings.keepFloating(at: CGPoint(x: 300, y: 200))
+        let persistence = PersistenceController(inMemory: true)
+        let state = AppState(persistence: persistence, settings: settings)
+        state.isExpanded = true
+        state.isPinned = true
+        let root = RootView(state: state, settings: settings).modelContainer(persistence.container)
+        let controller = PanelController(state: state, settings: settings, rootView: AnyView(root))
+        defer { controller.panel.orderOut(nil) }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+        let content = controller.panel.contentView!
+        content.layoutSubtreeIfNeeded()
+        for point in [NSPoint(x: 8, y: 280), NSPoint(x: 672, y: 280),
+                      NSPoint(x: 340, y: 8), NSPoint(x: 340, y: 552)] {
+            let hit = content.hitTest(point)
+            XCTAssertTrue(hit is ResizeHandleView, "\(point): \(String(describing: hit))")
+        }
+    }
+
     func testDragToPhysicalEdgesSnapsAcrossMenuBarAndDock() {
         let visible = NSRect(x: 0, y: 62, width: 1920, height: 988)
         // Header dragged to the physical screen edge; window itself need not be near visibleFrame.

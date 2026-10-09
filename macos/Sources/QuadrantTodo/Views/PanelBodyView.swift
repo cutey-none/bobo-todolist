@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// 展开态：顶栏 + 优先矩阵（UI PRD 4）。
@@ -17,6 +18,9 @@ struct PanelBodyView: View {
     let onWindowDrag: () -> Void
     let onWindowDragEnded: () -> Void
 
+    @AppStorage("layout.columnFraction") private var columnFraction = 0.5
+    @AppStorage("layout.topRowFraction") private var topRowFraction = 0.5
+    @State private var splitDragStart: Double?
     @State private var windowDragging = false
     @FocusState private var focusedInput: Quadrant?
 
@@ -49,14 +53,17 @@ struct PanelBodyView: View {
             let available = proxy.size.width - Metrics.contentPadding * 2
             let columns = available >= Metrics.matrixBreakpoint ? 2 : 1
             ScrollView(.vertical, showsIndicators: true) {
-                matrix(columns: columns, compact: columns == 2 && available / 2 < Metrics.compactQuadrantWidth)
+                matrix(columns: columns,
+                       compact: columns == 2 && available / 2 < Metrics.compactQuadrantWidth,
+                       minimumHeight: max(0, proxy.size.height - Metrics.contentPadding * 2))
                     .padding(Metrics.contentPadding)
             }
         }
     }
 
-    private func matrix(columns: Int, compact: Bool) -> some View {
-        MatrixLayout(columns: columns) {
+    private func matrix(columns: Int, compact: Bool, minimumHeight: CGFloat) -> some View {
+        MatrixLayout(columns: columns, columnFraction: columnFraction,
+                     topRowFraction: topRowFraction, minimumHeight: minimumHeight) {
             ForEach(Array(Quadrant.allCases.enumerated()), id: \.element) { index, quadrant in
                 QuadrantCardView(
                     quadrant: quadrant,
@@ -84,15 +91,67 @@ struct PanelBodyView: View {
                         if dragging { state.isDraggingTask = true }
                     }
                 )
-                .overlay(alignment: .trailing) {
-                    if columns == 2, index % 2 == 0 { Rectangle().fill(Theme.divider).frame(width: 1) }
-                }
                 .overlay(alignment: .bottom) {
-                    if index < Quadrant.allCases.count - columns { Rectangle().fill(Theme.divider).frame(height: 1) }
+                    if columns == 1, index < Quadrant.allCases.count - 1 {
+                        Rectangle().fill(Theme.divider).frame(height: 1)
+                    }
+                }
+                .anchorPreference(key: MatrixTopRowBoundsKey.self, value: .bounds) { anchor in
+                    columns == 2 && index == 0 ? anchor : nil
                 }
             }
         }
+        .overlayPreferenceValue(MatrixTopRowBoundsKey.self) { anchor in
+            if columns == 2, let anchor {
+                GeometryReader { proxy in
+                    let left = MatrixLayout.leftWidth(total: proxy.size.width, fraction: columnFraction)
+                    let top = proxy[anchor].maxY
+                    ZStack(alignment: .topLeading) {
+                        splitDivider(vertical: true, length: proxy.size.height, extent: proxy.size.width)
+                            .offset(x: left - 4)
+                        splitDivider(vertical: false, length: proxy.size.width, extent: proxy.size.height)
+                            .offset(y: top - 4)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+            }
+        }
+        .coordinateSpace(name: "quadrant-matrix")
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.divider, lineWidth: 1))
+    }
+
+    private func splitDivider(vertical: Bool, length: CGFloat, extent: CGFloat) -> some View {
+        Rectangle()
+            .fill(Theme.divider)
+            .frame(width: vertical ? 1 : length, height: vertical ? length : 1)
+            .frame(width: vertical ? 8 : length, height: vertical ? length : 8)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                if hovering { (vertical ? NSCursor.resizeLeftRight : NSCursor.resizeUpDown).set() }
+                else { NSCursor.arrow.set() }
+            }
+            .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("quadrant-matrix"))
+                .onChanged { value in
+                    if splitDragStart == nil {
+                        splitDragStart = vertical ? columnFraction : topRowFraction
+                        state.isDraggingTask = true
+                    }
+                    let delta = vertical ? value.translation.width : value.translation.height
+                    let fraction = min(0.8, max(0.2, (splitDragStart ?? 0.5) + delta / max(1, extent)))
+                    if vertical { columnFraction = fraction } else { topRowFraction = fraction }
+                }
+                .onEnded { _ in
+                    splitDragStart = nil
+                    state.isDraggingTask = false
+                })
+            .accessibilityElement()
+            .accessibilityLabel(vertical ? "调整左右象限宽度" : "调整上下象限高度")
+            .accessibilityValue("\(Int((vertical ? columnFraction : topRowFraction) * 100))%")
+            .accessibilityAdjustableAction { direction in
+                let change = direction == .increment ? 0.05 : -0.05
+                if vertical { columnFraction = min(0.8, max(0.2, columnFraction + change)) }
+                else { topRowFraction = min(0.8, max(0.2, topRowFraction + change)) }
+            }
     }
 
     private var header: some View {
@@ -154,5 +213,12 @@ struct PanelBodyView: View {
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateFormat = "M月d日 · EEE"
         return formatter.string(from: date)
+    }
+}
+
+private struct MatrixTopRowBoundsKey: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? { nil }
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
     }
 }

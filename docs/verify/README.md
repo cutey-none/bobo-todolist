@@ -221,3 +221,13 @@ Markdown 方框只渲染原文状态，不是可交互子任务。原文存储�
 修复纯文本 NSTextView 默认禁用仅含图片的粘贴命令，以及同时含文字表示的图片被当作纯文本的问题。删除附件时保留其他事项和待撤销事项的共享引用，只删除应用附件，不删除外部原文件。放弃编辑清理本次新建但未保存的附件；正常退出结束待删除事项的撤销期并清理附件。强制终止进程不保证执行退出清理。
 
 验证：`swift test --package-path macos` 全部 34 项通过；`macos/build.sh` release 构建成功。构建仅有既存 RootView.swift 未使用 withAnimation 返回值的警告。
+
+## 2026-10-09：四象限分隔线调整
+
+使用独立 release 验证应用，数据目录 `/tmp/quadrant-layout-verify/data`，未修改用户事项。
+
+- `74-dragged-quadrant-dividers.png`：通过 CUA 实际拖动中央竖线约 90pt、横线约 61pt，左右比例由 50% 变为约 62%，上下比例由 50% 变为约 63%；象限宽高实时变化，输入行仍可见。
+- 占比写入独立应用的 `layout.columnFraction` / `layout.topRowFraction`。窄布局继续纵排，宽布局保留占比；每个象限的内容最小高度优先于占比，长内容继续整体滚动。
+- 独立应用外部左边缘也实际拖动成功（窗口宽度 680→780）。新增集成测试对真实 RootView 的四边做 hitTest，确认自由浮动时均命中 ResizeHandleView。
+
+验证：`swift test --package-path macos` 35 项通过，`macos/build.sh` release 构建成功。
