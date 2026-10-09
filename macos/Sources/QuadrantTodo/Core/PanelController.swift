@@ -29,6 +29,7 @@ final class PanelController: NSObject {
     private var outsideSince: Date?
     private var fullScreenObserver: NSObjectProtocol?
     private var hiddenByUser = false
+    private var placementScreen: NSScreen?
     private var isWindowDragging = false
     /// 拖动触边时会连续修改 isDocked / edge / isExpanded。
     /// 暂停这些属性各自的布局订阅，避免多个相反方向的窗口动画互相覆盖。
@@ -166,10 +167,32 @@ final class PanelController: NSObject {
 
     // MARK: - 布局
 
+    /// Mouse location chooses the initial display only. Once placed, focus or
+    /// pointer changes on another display must not move or hide this panel.
     private var activeScreen: NSScreen {
-        let mouse = NSEvent.mouseLocation
-        if let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) { return screen }
-        return panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
+        let screens = NSScreen.screens
+        let rememberedID = placementScreen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+        if let rememberedID,
+           let screen = screens.first(where: {
+               $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber == rememberedID
+           }) { return screen }
+        let index = Self.placementScreenIndex(panelFrame: placementScreen == nil ? nil : panel.frame,
+                                              mouse: NSEvent.mouseLocation,
+                                              screens: screens.map(\.frame)) ?? 0
+        return screens[index]
+    }
+
+    static func placementScreenIndex(panelFrame: NSRect?, mouse: NSPoint, screens: [NSRect]) -> Int? {
+        if let panelFrame {
+            let areas = screens.map { screen -> CGFloat in
+                let intersection = panelFrame.intersection(screen)
+                return intersection.isNull ? 0 : intersection.width * intersection.height
+            }
+            if let index = areas.indices.max(by: { areas[$0] < areas[$1] }), areas[index] > 0 {
+                return index
+            }
+        }
+        return screens.firstIndex(where: { $0.contains(mouse) }) ?? screens.indices.first
     }
 
     private func centerY(on screen: NSScreen) -> CGFloat {
@@ -234,11 +257,13 @@ final class PanelController: NSObject {
     private func applyLayout(expanded: Bool, edge: EdgeSide? = nil, animated: Bool) {
         if !settings.isDocked, let origin = settings.floatingOrigin {
             let target = clampedFloatingFrame(origin: origin, size: settings.panelSize)
+            placementScreen = NSScreen.screens.first(where: { $0.frame.contains(NSPoint(x: target.midX, y: target.midY)) })
             hosting.frame = NSRect(origin: .zero, size: settings.panelSize)
             panel.setFrame(target, display: true)
             return
         }
         let screen = activeScreen
+        placementScreen = screen
         let layout = frames(on: screen, edge: edge)
         let target = expanded ? layout.expanded : layout.collapsed
         panel.minSize = .zero
@@ -383,6 +408,7 @@ final class PanelController: NSObject {
         let mouse = screenMouseLocation()
         let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) })
             ?? panel.screen ?? activeScreen
+        placementScreen = screen
         let visible = screen.visibleFrame
         let frame = panel.frame
         if let edge = Self.snapEdge(mouse: mouse, frame: frame, visible: visible) {
@@ -558,17 +584,35 @@ final class PanelController: NSObject {
     }
 
     private func evaluateFullScreen() {
-        guard !settings.showInFullScreen, !hiddenByUser else { return }
+        guard !hiddenByUser else { return }
         let frontmost = NSWorkspace.shared.frontmostApplication
         guard frontmost?.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
-        let screen = activeScreen
-        let covering = isAnotherAppCoveringFullScreen(screen: screen)
-        if covering {
+        updateFullScreenVisibility(covered: isAnotherAppCoveringFullScreen(screen: activeScreen))
+    }
+
+    /// Keep visibility changes separate from layout: restoring the panel must
+    /// preserve its display, frame, and expanded state.
+    func updateFullScreenVisibility(covered: Bool) {
+        guard !hiddenByUser else { return }
+        if covered && !settings.showInFullScreen {
             panel.orderOut(nil)
-        } else if !state.isExpanded {
+        } else if !panel.isVisible {
             panel.orderFrontRegardless()
-            applyLayout(animated: false)
         }
+    }
+
+    /// CGWindowList uses a top-left origin; NSScreen uses AppKit's bottom-left
+    /// origin. Displays above or below the primary screen require conversion.
+    static func quartzScreenFrame(_ frame: NSRect, primaryMaxY: CGFloat) -> CGRect {
+        CGRect(x: frame.minX, y: primaryMaxY - frame.maxY, width: frame.width, height: frame.height)
+    }
+
+    static func coversScreen(window: CGRect, screen: CGRect) -> Bool {
+        let tolerance: CGFloat = 4
+        return abs(window.minX - screen.minX) < tolerance
+            && abs(window.minY - screen.minY) < tolerance
+            && abs(window.width - screen.width) < tolerance
+            && abs(window.height - screen.height) < tolerance
     }
 
     private func isAnotherAppCoveringFullScreen(screen: NSScreen) -> Bool {
@@ -582,11 +626,9 @@ final class PanelController: NSObject {
                   let layer = window[kCGWindowLayer as String] as? Int, layer == 0,
                   let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat],
                   let bounds = CGRect(dictionaryRepresentation: boundsDict as CFDictionary) else { continue }
-            let tolerance: CGFloat = 4
-            if abs(bounds.minX - screen.frame.minX) < tolerance,
-               abs(bounds.minY - screen.frame.minY) < tolerance,
-               abs(bounds.width - screen.frame.width) < tolerance,
-               abs(bounds.height - screen.frame.height) < tolerance {
+            let screenBounds = Self.quartzScreenFrame(screen.frame,
+                                                       primaryMaxY: NSScreen.screens.first?.frame.maxY ?? 0)
+            if Self.coversScreen(window: bounds, screen: screenBounds) {
                 return true
             }
         }

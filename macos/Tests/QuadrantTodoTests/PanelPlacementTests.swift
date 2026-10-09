@@ -5,6 +5,67 @@ import SwiftUI
 
 @MainActor
 final class PanelPlacementTests: XCTestCase {
+    func testPanelDisplayDoesNotFollowFocusOnAnotherDisplay() {
+        let screens = [NSRect(x: 0, y: 0, width: 1920, height: 1080),
+                       NSRect(x: 1920, y: 0, width: 1440, height: 900)]
+        let railOnB = NSRect(x: 3322, y: 300, width: 38, height: 296)
+        XCTAssertEqual(PanelController.placementScreenIndex(panelFrame: railOnB,
+                       mouse: NSPoint(x: 500, y: 500), screens: screens), 1)
+        XCTAssertEqual(PanelController.placementScreenIndex(panelFrame: nil,
+                       mouse: NSPoint(x: 2100, y: 500), screens: screens), 1)
+        // If B is disconnected, recover on an available display.
+        XCTAssertEqual(PanelController.placementScreenIndex(panelFrame: railOnB,
+                       mouse: NSPoint(x: 500, y: 500), screens: [screens[0]]), 0)
+    }
+
+    func testFullScreenOnADoesNotCoverBInHorizontalOrVerticalArrangements() {
+        let a = NSRect(x: 0, y: 0, width: 1920, height: 1080)
+        let aQuartz = PanelController.quartzScreenFrame(a, primaryMaxY: 1080)
+        for b in [NSRect(x: 1920, y: 0, width: 1440, height: 900),
+                  NSRect(x: 0, y: 1080, width: 1440, height: 900),
+                  NSRect(x: 0, y: -900, width: 1440, height: 900)] {
+            let bQuartz = PanelController.quartzScreenFrame(b, primaryMaxY: 1080)
+            XCTAssertFalse(PanelController.coversScreen(window: aQuartz, screen: bQuartz))
+            XCTAssertTrue(PanelController.coversScreen(window: bQuartz, screen: bQuartz))
+        }
+        XCTAssertEqual(PanelController.quartzScreenFrame(NSRect(x: 0, y: 1080, width: 1440, height: 900),
+                        primaryMaxY: 1080).minY, -900)
+        XCTAssertEqual(PanelController.quartzScreenFrame(NSRect(x: 0, y: -900, width: 1440, height: 900),
+                        primaryMaxY: 1080).minY, 1080)
+    }
+
+    func testFullScreenRestoresCollapsedAndExpandedPanelsWithoutMovingThem() {
+        _ = NSApplication.shared
+        let domain = "FullScreenVisibility.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let settings = SettingsStore(defaults: defaults)
+        let persistence = PersistenceController(inMemory: true)
+        let state = AppState(persistence: persistence, settings: settings)
+        let root = RootView(state: state, settings: settings).modelContainer(persistence.container)
+        let controller = PanelController(state: state, settings: settings, rootView: AnyView(root))
+        state.controller = controller
+        defer { controller.panel.orderOut(nil) }
+        for expanded in [false, true] {
+            state.isExpanded = expanded
+            state.isPinned = true
+            controller.applyLayout(animated: false)
+            let frame = controller.panel.frame
+            controller.updateFullScreenVisibility(covered: true)
+            XCTAssertFalse(controller.panel.isVisible)
+            controller.updateFullScreenVisibility(covered: false)
+            XCTAssertTrue(controller.panel.isVisible)
+            XCTAssertEqual(controller.panel.frame, frame)
+            XCTAssertEqual(state.isExpanded, expanded)
+        }
+        settings.showInFullScreen = true
+        controller.updateFullScreenVisibility(covered: true)
+        XCTAssertTrue(controller.panel.isVisible)
+        controller.hideApp()
+        controller.updateFullScreenVisibility(covered: false)
+        XCTAssertFalse(controller.panel.isVisible, "Explicit hide must not be undone by app activation")
+    }
+
     func testExpandedEdgesReceiveMouseHits() {
         _ = NSApplication.shared
         let domain = "ResizeHits.\(UUID().uuidString)"
