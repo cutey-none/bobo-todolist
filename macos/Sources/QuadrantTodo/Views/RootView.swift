@@ -108,12 +108,7 @@ struct RootView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(.regularMaterial)
-                    .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
-            )
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .padding(.bottom, 58)
             .padding(.horizontal, 34)
             .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -138,8 +133,7 @@ struct RootView: View {
             .font(.system(size: 11.5, weight: .medium))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(Capsule().fill(.regularMaterial).shadow(color: .black.opacity(0.15), radius: 8, y: 3))
-            .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
+            .liquidGlass(in: Capsule())
             .padding(.top, 16)
             .padding(.horizontal, 24)
             .transition(.opacity.combined(with: .move(edge: .top)))

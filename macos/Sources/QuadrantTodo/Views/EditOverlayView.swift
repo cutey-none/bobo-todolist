@@ -63,17 +63,16 @@ struct EditOverlayView: View {
         GeometryReader { geometry in
             ZStack {
                 Color.black.opacity(0.18)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
                     .padding(Metrics.panelInset)
-                    .contentShape(RoundedRectangle(cornerRadius: 14).inset(by: Metrics.panelInset))
+                    .contentShape(RoundedRectangle(cornerRadius: 24).inset(by: Metrics.panelInset))
                     .onTapGesture(perform: backgroundTapped)
                 VStack(spacing: 0) {
                     editorFrame.padding(.horizontal, 20).padding(.top, 20)
                     footer
                 }
                 .frame(width: min(560, max(0, geometry.size.width - 24)), height: max(0, geometry.size.height - 24))
-                .background(RoundedRectangle(cornerRadius: 14).fill(Color(nsColor: .windowBackgroundColor)))
-                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.hairline, lineWidth: 1))
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay { if confirmingLeave { leaveConfirmation } }
 
                 if let preview, let image = ImageAttachment.image(from: preview) { imagePreview(image) }
@@ -126,7 +125,8 @@ struct EditOverlayView: View {
                         .accessibilityAddTraits(.isHeader)
                     Button(action: requestLeave) {
                         Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryText)
-                            .frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.04)))
+                            .frame(width: 26, height: 26)
+                            .liquidGlass(in: Circle(), interactive: true)
                     }
                     .buttonStyle(.plain)
                     .help("关闭（Esc）")
@@ -152,9 +152,9 @@ struct EditOverlayView: View {
             Divider().overlay(Theme.hairline)
             toolbar.padding(.horizontal, 12).frame(height: 40)
         }
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.hairline, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.hairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private var quadrantMenu: some View {
@@ -236,12 +236,9 @@ struct EditOverlayView: View {
         HStack(spacing: 10) {
             Button(role: .destructive, action: deleteTask) {
                 Label("删除事项", systemImage: "trash").font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.red.opacity(0.10)))
-                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.red.opacity(0.3), lineWidth: 1))
-                    .contentShape(Rectangle())
+                    .padding(.vertical, 2)
             }
-            .buttonStyle(.plain)
+            .liquidGlassButton()
             .foregroundStyle(Theme.red)
             .help("删除事项，8 秒内可撤销")
 
@@ -252,13 +249,13 @@ struct EditOverlayView: View {
                 Text("有未保存的更改").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
             }
             Spacer()
-            Button("取消", action: requestLeave).buttonStyle(.plain).font(.system(size: 12)).padding(.horizontal, 12).padding(.vertical, 6)
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.hairline, lineWidth: 1))
+            Button("取消", action: requestLeave)
+                .font(.system(size: 12)).liquidGlassButton()
             Button(action: { _ = save() }) {
-                Text(saving ? "正在保存…" : "保存").font(.system(size: 12, weight: .medium)).foregroundStyle(.white).padding(.horizontal, 14).padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.accent))
+                Text(saving ? "正在保存…" : "保存")
+                    .font(.system(size: 12, weight: .medium)).padding(.horizontal, 6)
             }
-            .buttonStyle(.plain)
+            .liquidGlassButton(prominent: true)
             .disabled(saving)
             .keyboardShortcut("s", modifiers: .command)
         }
@@ -268,7 +265,7 @@ struct EditOverlayView: View {
     /// 有修改时离开前的统一确认（Esc、点遮罩、关闭按钮、取消都走这里）。
     private var leaveConfirmation: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.12))
+            RoundedRectangle(cornerRadius: 24).fill(Color.black.opacity(0.12))
             VStack(alignment: .leading, spacing: 12) {
                 Text("保存对「\(originalTitle)」的修改吗？").font(.system(size: 13, weight: .semibold))
                 Text("不保存的话，这次修改会丢失。").font(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
@@ -284,7 +281,7 @@ struct EditOverlayView: View {
             }
             .padding(18)
             .frame(width: 320)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color(nsColor: .windowBackgroundColor)).shadow(color: .black.opacity(0.25), radius: 16, y: 6))
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("未保存的修改")

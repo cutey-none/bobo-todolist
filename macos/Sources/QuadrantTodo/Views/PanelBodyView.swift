@@ -32,12 +32,8 @@ struct PanelBodyView: View {
             Divider().overlay(Theme.divider)
             quadrantScroll
         }
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.panelBackground))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.5)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .onChange(of: focusedInput) { _, quadrant in
             state.focusedInput = quadrant
             if let quadrant { state.selectedQuadrant = quadrant }
@@ -117,7 +113,9 @@ struct PanelBodyView: View {
             }
         }
         .coordinateSpace(name: "quadrant-matrix")
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.divider, lineWidth: 1))
+        .background(MatrixReadingSurface())
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.divider, lineWidth: 0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func splitDivider(vertical: Bool, length: CGFloat, extent: CGFloat) -> some View {
@@ -177,12 +175,9 @@ struct PanelBodyView: View {
             Button(action: onCollapse) {
                 Text("收起")
                     .font(.system(size: 11))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.primary.opacity(0.07)))
-                    .contentShape(Capsule())
+                    .padding(.horizontal, 3)
             }
-            .buttonStyle(.plain)
+            .liquidGlassButton()
             .help("收起为贴边条（Esc）")
         }
         .padding(.horizontal, Metrics.contentPadding + 2)

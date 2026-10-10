@@ -22,7 +22,7 @@ struct RailView: View {
                     .frame(width: Metrics.railHeight, height: Metrics.railWidth)
             }
         }
-        .background(railBackground)
+        .liquidGlass(in: RoundedRectangle(cornerRadius: Metrics.railCorner, style: .continuous))
         .contentShape(Rectangle())
         .onHover(perform: onHover)
         .gesture(
@@ -101,30 +101,4 @@ struct RailView: View {
         }
     }
 
-    @ViewBuilder private var railBackground: some View {
-        if edge.isVertical {
-        let shape = UnevenRoundedRectangle(
-            topLeadingRadius: edge == .right ? Metrics.railCorner : 0,
-            bottomLeadingRadius: edge == .right ? Metrics.railCorner : 0,
-            bottomTrailingRadius: edge == .right ? 0 : Metrics.railCorner,
-            topTrailingRadius: edge == .right ? 0 : Metrics.railCorner,
-            style: .continuous
-        )
-        shape
-            .fill(.clear)
-            .background(VisualEffectView(material: .popover).clipShape(shape))
-            .overlay(shape.strokeBorder(Theme.hairline, lineWidth: 1))
-        } else {
-            let shape = UnevenRoundedRectangle(
-                topLeadingRadius: edge == .bottom ? Metrics.railCorner : 0,
-                bottomLeadingRadius: edge == .top ? Metrics.railCorner : 0,
-                bottomTrailingRadius: edge == .top ? Metrics.railCorner : 0,
-                topTrailingRadius: edge == .bottom ? Metrics.railCorner : 0,
-                style: .continuous
-            )
-            shape.fill(.clear)
-                .background(VisualEffectView(material: .popover).clipShape(shape))
-                .overlay(shape.strokeBorder(Theme.hairline, lineWidth: 1))
-        }
-    }
 }
