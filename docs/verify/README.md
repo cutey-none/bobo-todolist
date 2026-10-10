@@ -262,3 +262,28 @@ Markdown 方框只渲染原文状态，不是可交互子任务。原文存储�
 - 没有保留调试日志或临时生产代码。
 
 验证：全部 39 项 Swift 测试通过；`macos/build.sh` release 构建成功，用户应用已重启。仅有既存 RootView.swift 未使用 withAnimation 返回值的警告。
+
+## macOS 原生 Liquid Glass（2026-10-10）
+
+使用 macOS 26.5.2 / SDK 26.5，debug 应用通过真实 AppKit 事件验证。
+数据目录为 `/tmp/quadrant-liquid-glass/data`，不使用正式事项数据库。
+截图使用 `screencapture -R` 截取实际窗口所在屏幕区域，保留系统对桌面背景的玻璃合成效果；
+仅捕获窗口图层会丢失背后桌面的采样，不能证明最终玻璃外观。
+
+| 截图 | 证明 |
+| --- | --- |
+| [75-liquid-glass-matrix.png](75-liquid-glass-matrix.png) | 680×560 默认四象限布局；原生玻璃外壳采样桌面背景，正文区域有独立阅读底色。 |
+| [76-liquid-glass-editor.png](76-liquid-glass-editor.png) | 单击标题打开编辑浮层；统一玻璃外壳、圆形关闭控件、系统玻璃保存按钮与完整 Markdown 编辑区域。 |
+| [77-liquid-glass-narrow.png](77-liquid-glass-narrow.png) | 420×480 窄窗口按象限纵排，输入行和任务控制仍可见，整体滚动保留。 |
+| [78-liquid-glass-rail.png](78-liquid-glass-rail.png) | 点击收起按钮后显示原生玻璃贴边条，象限颜色、各象限计数和总数可读。 |
+| [79-liquid-glass-saved.png](79-liquid-glass-saved.png) | 通过玻璃保存按钮提交新标题和 Markdown；浮层关闭，SQLite 查询确认标题和描述原文已落盘。 |
+| [80-liquid-glass-completion.png](80-liquid-glass-completion.png) | 点击完成圆圈后事项移入已完成区，总数减少，原生玻璃提示显示完成反馈和撤销入口。 |
+
+实现使用带 `#available(macOS 26.0, *)` 检查的 `glassEffect` / `glass` / `glassProminent`；
+macOS 14–25 回退到 AppKit 毛玻璃与标准按钮。
+开启“降低透明度”时使用不透明底色；“增强对比度”时正文底色不透明。
+旧系统和辅助功能分支经编译检查，本次未在旧系统或切换系统辅助功能设置下进行运行验证。
+
+验证：`swift test --package-path macos` 共 39 项通过；
+`macos/build.sh` release 构建成功，更新 `macos/build/QuadrantTodo.app`。
+编译保留既有的 RootView 键盘删除路径 `withAnimation` 返回值未使用警告。
