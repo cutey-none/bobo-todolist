@@ -309,3 +309,11 @@ macOS 14–25 回退到 AppKit 毛玻璃与标准按钮。
 本次只改变应用图标、打包脚本与说明，不修改事项交互或数据模型。
 没有实际覆盖用户 `/Applications` 中的安装版；复制验证使用 `macos/build/install-check/`。
 未验证 Intel / macOS 14 运行，也没有 Developer ID 签名、公证或自动发布。
+
+### v0.0.1 发行包
+
+按发行版本重新设置 `CFBundleShortVersionString=0.0.1` 后，再次运行
+`macos/package-dmg.sh`（包含 `macos/build.sh release`）。挂载新 DMG，确认镜像内
+Info.plist 版本为 `0.0.1`、与本机构建的 plist 一致，严格验签与 SHA-256 校验通过。
+发行附件为 `QuadrantTodo_0.0.1_arm64.dmg` 及对应 `.dmg.sha256`；适用于 Apple Silicon、macOS 14+。
+README 提供 GitHub Release 页面与两个附件的直接下载链接。
