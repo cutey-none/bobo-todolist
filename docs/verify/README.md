@@ -287,3 +287,25 @@ macOS 14–25 回退到 AppKit 毛玻璃与标准按钮。
 验证：`swift test --package-path macos` 共 39 项通过；
 `macos/build.sh` release 构建成功，更新 `macos/build/QuadrantTodo.app`。
 编译保留既有的 RootView 键盘删除路径 `withAnimation` 返回值未使用警告。
+
+## Logo 与 DMG 安装包（2026-10-11）
+
+在 Apple Silicon / macOS 26.5.2 上运行 `macos/generate-icon.sh` 和
+`macos/package-dmg.sh`；后者自动执行 `macos/build.sh release`，工作目录中的
+`macos/build/QuadrantTodo.app` 已更新。PNG 保留透明背景，ICNS 包含普通和 Retina 尺寸。
+
+| 截图 | 证明 |
+| --- | --- |
+| [81-dmg-app-icon-and-applications.png](81-dmg-app-icon-and-applications.png) | Finder 打开真实只读 DMG，QuadrantTodo 显示新四象限勾选图标，同一窗口有指向系统应用程序目录的 Applications 安装快捷方式。 |
+
+验证结果：
+
+- `zsh -n` 检查构建、图标转换与打包脚本通过，Info.plist 格式检查通过。
+- release 构建成功；打包前完整应用签名、挂载后的应用签名以及复制到隔离安装目录后的签名均通过 `codesign --verify --deep --strict`。
+- `hdiutil verify` 与 `.dmg.sha256` 的 `shasum -a 256 -c` 均通过。
+- 挂载后 `Applications` 的链接目标确认为 `/Applications`；镜像内 ICNS 与资源原文件逐字节一致。
+- 可执行文件检查确认为 arm64，DMG 约 2.7 MB；生成物在 `macos/build/`，未提交到 Git。
+
+本次只改变应用图标、打包脚本与说明，不修改事项交互或数据模型。
+没有实际覆盖用户 `/Applications` 中的安装版；复制验证使用 `macos/build/install-check/`。
+未验证 Intel / macOS 14 运行，也没有 Developer ID 签名、公证或自动发布。

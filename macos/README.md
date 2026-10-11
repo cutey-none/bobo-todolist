@@ -6,7 +6,7 @@
 
 - 系统：macOS 14 Sonoma 或更新版本（使用 SwiftData，旧系统不能运行）。
 - 推荐工具链：Xcode 15 或更新版本，包含 Swift 5.9+ 和 macOS 14+ SDK。安装后首次打开 Xcode，接受许可并完成组件安装；在 Xcode → Settings → Locations 中选择 Command Line Tools。
-- 支持 Apple Silicon 与 Intel Mac。脚本默认编译当前电脑的架构；另一台电脑应从源码本机构建，不要依赖从不同架构电脑复制来的 `.app`。
+- 支持 Apple Silicon 与 Intel Mac。脚本默认编译当前电脑的架构；另一台电脑可安装架构匹配的 DMG，或从源码本机构建，不要依赖不同架构的 `.app`。
 - 不需要 Homebrew、Node.js、Python、CodeGraph、额外 Swift 包或 Apple Developer 付费账号。只安装 Command Line Tools 时，也须确保它提供满足上述版本要求的 Swift 与 macOS SDK。
 
 打开终端检查：
@@ -54,14 +54,55 @@ open build/QuadrantTodo.app
 
 ### 安装到「应用程序」
 
-先通过菜单栏右键 →「退出四象限待办」退出已运行的实例。以下命令从**仓库根目录**执行；若已安装旧版，先在 Finder 中将 `/Applications/QuadrantTodo.app` 移到废纸篓，避免 `cp -R` 合并旧包。移除应用包不会删除本地待办数据。
+双击匹配本机架构的 DMG，把 `QuadrantTodo.app` 拖到镜像里的 `Applications` 快捷方式，等待复制完成后推出镜像，再从「应用程序」打开。无需终端复制或 Xcode。替换旧版本前，先保存编辑内容并通过菜单栏退出；Finder 询问时选择「替换」，不要合并应用包。
+
+没有系统「应用程序」目录写入权限时，可将应用拖到个人的 `~/Applications/`。不要同时运行源码目录与安装目录里的两个实例。应用包有 Finder 图标，运行时仍是无 Dock 图标的菜单栏工具。
+
+### 打包 DMG
+
+在仓库根目录执行：
 
 ```bash
-cp -R macos/build/QuadrantTodo.app /Applications/
-open /Applications/QuadrantTodo.app
+./macos/package-dmg.sh
 ```
 
-若没有系统「应用程序」目录的写入权限，可在 Finder 中安装到个人的 `~/Applications/`。以后启动安装后的应用即可，无需每次编译；不要同时运行源码目录与安装目录中的两个实例。
+脚本先执行 `build.sh release`，复制完整应用包及图标，完成 ad-hoc 签名并严格验签；再用系统 `hdiutil` 创建压缩只读 DMG。镜像只含 `QuadrantTodo.app` 和指向 `/Applications` 的快捷方式，不包含用户数据。生成物：
+
+```text
+macos/build/QuadrantTodo.app
+macos/build/QuadrantTodo_0.1.0_arm64.dmg
+macos/build/QuadrantTodo_0.1.0_arm64.dmg.sha256
+```
+
+Intel 本机构建的文件名是 `x86_64`。版本从 `Resources/Info.plist` 读取，默认单架构，不是 Universal 包。`hdiutil verify` 成功后才替换已有 DMG。在安装包所在目录校验下载完整性（文件名按实际版本和架构修改）：
+
+```bash
+shasum -a 256 -c QuadrantTodo_0.1.0_arm64.dmg.sha256
+```
+
+发布时一并提供 DMG 与 `.sha256` 文件。当前没有自动上传 / 发布流程。
+
+### 下载后的首次打开
+
+应用使用 ad-hoc 签名；**没有 Developer ID 签名或 Apple 公证**，因此下载后的首次启动可能被 Gatekeeper 拦截。确认来源可信后先尝试打开，再到「系统设置 → 隐私与安全性」选择「仍要打开」。也可只移除已安装应用的隔离属性：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/QuadrantTodo.app
+```
+
+这个命令不会修复签名损坏。如果系统提示「已损坏」，先检查 SHA-256，重新下载和安装；维护者可用下面的命令检查应用包签名：
+
+```bash
+codesign --verify --deep --strict /Applications/QuadrantTodo.app
+```
+
+不要全局关闭 Gatekeeper。DMG 只是安装容器，不代表已经公证。
+
+### 用 DMG 更新或卸载
+
+保存并退出，备份 `~/Library/Application Support/QuadrantTodo/`，用新版 DMG 替换应用包。数据库、附件与设置位于用户目录，替换 `.app` 不会删除它们；升级后的应用仍会执行兼容迁移。需要换机时按下面的「数据备份与换机」复制整个数据目录。
+
+卸载时退出并删除应用包即可。默认保留数据和设置，重新安装后可以继续使用。
 
 ### 安全更新且保留待办
 
@@ -180,7 +221,11 @@ macos/
       ProgressEntry.swift      旧进度数据模型，仅用于启动迁移与兼容
       ImageAttachment.swift    图片压缩与规范化
     Views/                     贴边条、面板、象限卡片、任务行、编辑浮层、设置
-  Resources/Info.plist         LSUIElement / 版本信息
+  Resources/Info.plist         LSUIElement / 版本信息 / 图标配置
+  Resources/AppIcon.png        Logo 原图
+  Resources/AppIcon.icns       macOS 多尺寸应用图标
+  generate-icon.sh             从 PNG 生成 Retina ICNS
+  package-dmg.sh               release 构建、DMG 打包与 SHA-256 校验
   build.sh                     构建并组装 .app
   upgrade.sh                   备份数据、拉取、隔离构建并安全替换应用
 Update.command                 可双击运行的更新入口
