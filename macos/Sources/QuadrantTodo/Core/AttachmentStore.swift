@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ImageIO
 
 /// Markdown 描述里的图片文件：存放在数据目录的 `Attachments/` 下，正文用相对路径 `attachments/<名称>` 引用。
 struct AttachmentStore {
@@ -49,6 +50,22 @@ struct AttachmentStore {
         return image
     }
 
+    /// 正文只需要预览图，避免为小尺寸显示解码完整相机图片。由后台任务调用。
+    func thumbnail(for source: String) -> CGImage? {
+        guard let url = url(for: source) else { return nil }
+        if let cached = Self.thumbnailCache.object(forKey: url as NSURL) { return cached }
+        guard let input = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(input, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: 1024,
+                kCGImageSourceShouldCacheImmediately: true
+              ] as CFDictionary) else { return nil }
+        Self.thumbnailCache.setObject(image, forKey: url as NSURL,
+                                      cost: image.bytesPerRow * image.height)
+        return image
+    }
+
     /// 只删除应用拥有的附件；绝不删除用户原始文件。
     func remove(_ source: String) {
         guard source.hasPrefix(Self.prefix), let url = url(for: source) else { return }
@@ -57,10 +74,17 @@ struct AttachmentStore {
                 try FileManager.default.removeItem(at: url)
             }
             Self.cache.removeObject(forKey: url as NSURL)
+            Self.thumbnailCache.removeObject(forKey: url as NSURL)
         } catch {
             NSLog("QuadrantTodo: 删除图片失败 \(error.localizedDescription)")
         }
     }
+
+    private static let thumbnailCache: NSCache<NSURL, CGImage> = {
+        let cache = NSCache<NSURL, CGImage>()
+        cache.totalCostLimit = 32 * 1024 * 1024
+        return cache
+    }()
 
     private static let cache = NSCache<NSURL, NSImage>()
 }

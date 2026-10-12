@@ -317,3 +317,33 @@ macOS 14–25 回退到 AppKit 毛玻璃与标准按钮。
 Info.plist 版本为 `0.0.1`、与本机构建的 plist 一致，严格验签与 SHA-256 校验通过。
 发行附件为 `QuadrantTodo_0.0.1_arm64.dmg` 及对应 `.dmg.sha256`；适用于 Apple Silicon、macOS 14+。
 README 提供 GitHub Release 页面与两个附件的直接下载链接。
+
+## 长描述展开性能（2026-10-12）
+
+根因是普通 `VStack` 在展开时一次创建和排版整篇描述，图片同时沿用原尺寸解码。
+改为 `LazyVStack` 后正文随滚动逐步创建；图片在后台通过 ImageIO 生成最长边
+1024px 的预览，预览缓存上限为 32MB。编辑浮层的大图查看仍读取原图。
+
+回归测试 `MarkdownRenderingTests.testLargeDescriptionExpansionRemainsResponsive`
+使用真实 `TaskRowView`、`MatrixLayout`、`ScrollView`，在 680×560 的运行视图中
+显示 120 段 Markdown（含行内粗体）和 8 张独立的 4000×3000 PNG。
+附件位于临时目录，不访问用户事项库。测试断言首次显示和重建显示均小于
+200ms，并检查预览最长边与宽高比。
+
+- 对同一运行布局临时恢复 HEAD 的旧 `MarkdownView`：首次 263ms、再次 166ms，首次响应断言失败。
+- 修复后完整测试：首次 75ms、再次 27ms；40 项测试全部通过。
+- 测量范围是主线程创建、布局和首帧绘制；新实现首帧可显示图片加载占位，耗时不代表所有原图加载完毕。
+- `macos/build.sh` release 构建与严格验签成功；保留既有 RootView 的 `withAnimation` 返回值未使用警告。
+
+| 截图 | 证明 |
+| --- | --- |
+| [82-long-description-lazy-rendering.png](82-long-description-lazy-rendering.png) | 独立 NSWindow 中真实运行组件的截图：任务行展开后，标题、Markdown 标题、粗体正文及后台加载完成的图片均正常显示。其余象限使用测试占位文字；这不是完整主面板截图。 |
+
+截图可重现：
+
+```sh
+QT_RENDER_SCREENSHOT="$PWD/docs/verify/82-long-description-lazy-rendering.png" \
+  swift test --package-path macos --filter MarkdownRenderingTests
+```
+
+本次未在旧 macOS 系统上运行，也未测量用户实际附件文件。

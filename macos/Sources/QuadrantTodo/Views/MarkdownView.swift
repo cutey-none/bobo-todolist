@@ -9,7 +9,8 @@ struct MarkdownView: View {
     var onImageTap: ((String) -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        // 展开只排版可见正文，避免长描述在一次布局里创建所有文字与图片。
+        LazyVStack(alignment: .leading, spacing: 6) {
             ForEach(Array(MarkdownDocument.parse(markdown).enumerated()), id: \.offset) { _, block in
                 blockView(block)
             }
@@ -64,22 +65,9 @@ struct MarkdownView: View {
         .padding(.leading, 4)
     }
 
-    @ViewBuilder private func imageView(alt: String, source: String) -> some View {
-        if let image = attachments.image(for: source) {
-            let content = Image(nsImage: image).resizable().scaledToFit()
-                .frame(maxHeight: imageMaxHeight, alignment: .leading)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .accessibilityLabel(alt.isEmpty ? "图片" : alt)
-            if let onImageTap {
-                Button { onImageTap(source) } label: { content }.buttonStyle(.plain).help("查看大图")
-            } else {
-                content
-            }
-        } else {
-            Label(alt.isEmpty ? "图片无法显示" : alt, systemImage: "photo")
-                .font(.system(size: fontSize - 1))
-                .foregroundStyle(Theme.secondaryText)
-        }
+    private func imageView(alt: String, source: String) -> some View {
+        MarkdownImageView(alt: alt, source: source, attachments: attachments,
+                          maxHeight: imageMaxHeight, fontSize: fontSize, onTap: onImageTap)
     }
 
     private func inline(_ text: String) -> Text {
@@ -93,6 +81,52 @@ struct MarkdownView: View {
         case 1: return fontSize + 4
         case 2: return fontSize + 2.5
         default: return fontSize + 1
+        }
+    }
+}
+
+/// 图片读取与解码离开主线程；源路径变化时 SwiftUI 取消旧任务。
+private struct MarkdownImageView: View {
+    let alt: String
+    let source: String
+    let attachments: AttachmentStore
+    let maxHeight: CGFloat
+    let fontSize: CGFloat
+    let onTap: ((String) -> Void)?
+    @State private var image: CGImage?
+    @State private var loaded = false
+
+    var body: some View {
+        Group {
+            if let image {
+                let content = Image(image, scale: 1, label: Text(alt.isEmpty ? "图片" : alt)).resizable().scaledToFit()
+                    .frame(maxHeight: maxHeight, alignment: .leading)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityLabel(alt.isEmpty ? "图片" : alt)
+                if let onTap {
+                    Button { onTap(source) } label: { content }.buttonStyle(.plain).help("查看大图")
+                } else {
+                    content
+                }
+            } else if loaded {
+                Label(alt.isEmpty ? "图片无法显示" : alt, systemImage: "photo")
+                    .font(.system(size: fontSize - 1)).foregroundStyle(Theme.secondaryText)
+            } else {
+                RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04))
+                    .frame(height: maxHeight)
+                    .overlay(ProgressView().controlSize(.small))
+                    .accessibilityLabel("正在加载图片")
+            }
+        }
+        .task(id: attachments.url(for: source)) {
+            image = nil
+            loaded = false
+            let result = await Task.detached(priority: .userInitiated) {
+                attachments.thumbnail(for: source)
+            }.value
+            guard !Task.isCancelled else { return }
+            image = result
+            loaded = true
         }
     }
 }
