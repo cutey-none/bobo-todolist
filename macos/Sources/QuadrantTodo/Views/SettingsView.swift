@@ -4,6 +4,7 @@ import SwiftUI
 /// 设置窗口：贴边侧、置顶、全屏行为与全局快捷键。
 struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var updater: UpdateController
     let onRevealData: () -> Void
 
     var body: some View {
@@ -87,6 +88,15 @@ struct SettingsView: View {
                     .font(.system(size: 11))
             }
 
+            section("关于与更新") {
+                row("当前版本") {
+                    Text(updater.currentVersion?.description ?? "未知")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                }
+                UpdateStatusView(updater: updater)
+            }
+
             Spacer(minLength: 0)
 
             HStack {
@@ -96,7 +106,7 @@ struct SettingsView: View {
             }
         }
         .padding(18)
-        .frame(width: 380, height: 560, alignment: .topLeading)
+        .frame(width: 380, height: 700, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 

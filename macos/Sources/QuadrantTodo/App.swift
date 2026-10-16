@@ -9,7 +9,7 @@ struct QuadrantTodoApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView(settings: SettingsStore.shared) {
+            SettingsView(settings: SettingsStore.shared, updater: UpdateController.shared) {
                 NSWorkspace.shared.activateFileViewerSelecting([PersistenceController.storeURL()])
             }
         }
