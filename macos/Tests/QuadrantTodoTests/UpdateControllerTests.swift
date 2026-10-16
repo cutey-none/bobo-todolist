@@ -80,3 +80,12 @@ final class UpdateControllerTests: XCTestCase {
         XCTAssertEqual(updater.phase, .idle)
     }
 }
+
+final class UpdateTerminationTests: XCTestCase {
+    func testQuitIsHeldOnlyWhilePreparing() {
+        XCTAssertFalse(UpdateController.allowsTermination(during: .preparing))
+        XCTAssertTrue(UpdateController.allowsTermination(during: .downloading(0.5)))
+        XCTAssertTrue(UpdateController.allowsTermination(during: .relaunching))
+        XCTAssertTrue(UpdateController.allowsTermination(during: .idle))
+    }
+}

@@ -71,7 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("QuadrantTodo: 启动即展开")
             appState.expand()
         }
-        // 助手脚本替换完成后会重新打开应用，这里告知升级结果。
+        // 助手脚本替换完成后会重新打开应用，这里告知升级结果，并清理被中断的升级留下的暂存副本。
+        UpdateInstaller.removeStaleStaging(nextTo: Bundle.main.bundleURL)
         DispatchQueue.main.async { AppDelegate.presentUpdateResultIfNeeded() }
         #if DEBUG
         DebugUIDriver.startIfRequested(window: controller.panel)
@@ -105,6 +106,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = result.detail
         NSApp.activate()
         alert.runModal()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        UpdateController.allowsTermination(during: UpdateController.shared.phase) ? .terminateNow : .terminateCancel
     }
 
     func applicationWillTerminate(_ notification: Notification) {

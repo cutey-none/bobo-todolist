@@ -126,6 +126,16 @@ struct UpdateInstaller: Sendable {
         return StagedApp(appURL: staged, stagingDirectory: staging)
     }
 
+    /// 清理上次升级中断后遗留在应用旁的暂存目录（只认本应用创建的 `.quadrant-update.*`）。
+    static func removeStaleStaging(nextTo target: URL) {
+        let fm = FileManager.default
+        let directory = target.deletingLastPathComponent()
+        guard let names = try? fm.contentsOfDirectory(atPath: directory.path) else { return }
+        for name in names where name.hasPrefix(".quadrant-update.") {
+            try? fm.removeItem(at: directory.appendingPathComponent(name))
+        }
+    }
+
     static func validateBundle(at app: URL, expectedVersion: AppVersion) throws {
         let plistURL = app.appendingPathComponent("Contents/Info.plist")
         guard let data = try? Data(contentsOf: plistURL),

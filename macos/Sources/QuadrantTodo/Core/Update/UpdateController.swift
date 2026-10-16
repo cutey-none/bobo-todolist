@@ -51,6 +51,11 @@ final class UpdateController: ObservableObject {
         }
     }
 
+    /// 校验与备份阶段不能中断：此时退出会在应用旁留下不完整的暂存副本。
+    nonisolated static func allowsTermination(during phase: Phase) -> Bool {
+        phase != .preparing
+    }
+
     func check() {
         guard !isBusy else { return }
         guard let currentVersion else {
