@@ -44,7 +44,7 @@
 3. **下载与校验**（不触碰现有 app 和数据）：
    - 下载 DMG 与 `.sha256` 到 `~/Library/Caches/QuadrantTodo/Updates/`，显示进度，可取消。
    - 计算 SHA-256，与 `.sha256` 第一字段比对，不一致即失败。
-   - `hdiutil attach -nobrowse -readonly -noautoopen -mountrandom <临时目录>` 挂载。
+   - `hdiutil attach -nobrowse -readonly -noautoopen -mountpoint <临时目录>` 挂载。
    - 将镜像内 `QuadrantTodo.app` 用 `ditto` 复制到目标 app 同目录下的隐藏暂存目录 `.quadrant-update.XXXXXX/`（同卷，保证后续 `mv` 原子）。
    - `codesign --verify --deep --strict` 验签；读取暂存 app 的 Info.plist，要求 `CFBundleIdentifier == com.cutey.quadranttodo` 且 `CFBundleShortVersionString` 等于 Release 版本。
    - `hdiutil detach`（无论成功失败都执行）。
@@ -56,7 +56,7 @@
    - 将助手脚本写入临时目录，以 `/bin/zsh helper.sh <pid> <暂存 app> <目标 app> <备份目录> <结果文件>` 启动（独立进程，不随 app 退出）。
    - app 调用 `NSApp.terminate(nil)`，经由现有 `applicationWillTerminate` 完成待删除事项。
    - 助手：等待 pid 退出（最多 30 秒）→ `mv 目标 备份/Previous.app` → `mv 暂存 目标` → 失败则把 `Previous.app` 移回 → 清理暂存目录 → 写结果文件 → `open 目标`。
-6. **启动后反馈**：app 启动时读取结果文件 `~/Library/Caches/QuadrantTodo/Updates/last-result.json`，通过 `AppState` 的 notice 显示「已升级到 x.y.z」或「升级失败，已保留旧版本。备份位于 …」，随后删除结果文件。
+6. **启动后反馈**：app 启动时读取结果文件 `~/Library/Caches/QuadrantTodo/Updates/last-result.json`，以 `NSAlert` 显示「已升级到 x.y.z」或「升级失败，已保留旧版本」及备份位置，随后删除结果文件。（启动时面板收起，短暂的面板 notice 用户看不到，因此使用弹窗。）
 
 **数据保证**：流程只移动 `.app`，从不写入数据目录与 UserDefaults；备份是额外保险。新版启动照常执行现有兼容迁移。
 
@@ -81,7 +81,7 @@
 
 - `Views/SettingsView.swift`：新增「关于与更新」区：当前版本；按 phase 显示「检查更新」/「升级到 x.y.z」/「取消」按钮、进度条、状态文字；Release 说明默认截断，可展开。
 - `Core/StatusItemController.swift`：右键菜单在「设置…」之前加入「检查更新…」，打开设置窗口并立即开始检查。
-- `App.swift`：创建 `UpdateController` 并注入设置页与菜单；启动时读取结果文件并显示 notice。
+- `App.swift`：创建 `UpdateController` 并注入设置页与菜单；启动时读取结果文件并弹出 NSAlert。
 - 开发用环境变量 `QT_UPDATE_FEED_URL`：覆盖 `releases/latest` 地址（可为 `file://` 或本地 http），用于验证。
 
 ## 4. 错误处理
