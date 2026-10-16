@@ -74,6 +74,51 @@ final class UpdateControllerTests: XCTestCase {
         XCTAssertEqual(updater.phase, .failed(UpdateError.unrecognizedVersion.message))
     }
 
+    /// 用户点「升级」后在下载期间又开始编辑：替换前必须再次检查，不能退出应用丢掉正在输入的内容。
+    func testEditingStartedDuringDownloadStopsBeforeQuitting() async throws {
+        let dmg = try UpdateTestSupport.makeDMG(in: root, version: "0.0.2")
+        let sums = root.appendingPathComponent("sums.sha256")
+        try Data("\(try UpdateChecksum.sha256Hex(of: dmg))\n".utf8).write(to: sums)
+        let feed = root.appendingPathComponent("latest.json")
+        try Data("""
+        {"tag_name":"v0.0.2","body":"","assets":[
+          {"name":"QuadrantTodo_0.0.2_arm64.dmg","browser_download_url":"\(dmg.absoluteString)"},
+          {"name":"QuadrantTodo_0.0.2_arm64.dmg.sha256","browser_download_url":"\(sums.absoluteString)"}]}
+        """.utf8).write(to: feed)
+        let apps = root.appendingPathComponent("Apps")
+        try FileManager.default.createDirectory(at: apps, withIntermediateDirectories: true)
+
+        var probes = 0
+        var terminated = false
+        let updater = UpdateController(
+            installer: UpdateInstaller(runner: CodesignStubRunner()),
+            feedURL: feed,
+            currentVersion: AppVersion("0.0.1"),
+            architecture: "arm64",
+            appURL: apps.appendingPathComponent("QuadrantTodo.app"),
+            locations: .init(
+                downloads: root.appendingPathComponent("Downloads"),
+                data: root.appendingPathComponent("data"),
+                backupRoot: root.appendingPathComponent("Backups"),
+                resultFile: root.appendingPathComponent("result.json")
+            ),
+            editingProbe: {
+                probes += 1
+                return (isEditing: probes > 1, drafts: [])
+            },
+            terminate: { terminated = true }
+        )
+
+        updater.check()
+        await updater.waitForCurrentTask()
+        updater.install()
+        await updater.waitForCurrentTask()
+
+        XCTAssertEqual(updater.phase, .failed(UpdatePreflightProblem.editing.message))
+        XCTAssertFalse(terminated, "仍在编辑时不应退出应用")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: apps.path), [], "不应留下暂存副本")
+    }
+
     func testInstallWithoutAvailableReleaseDoesNothing() throws {
         let updater = try controller(feed: release002)
         updater.install()

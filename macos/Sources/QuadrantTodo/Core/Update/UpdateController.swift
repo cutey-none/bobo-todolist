@@ -16,6 +16,25 @@ final class UpdateController: ObservableObject {
         case failed(String)
     }
 
+    /// 下载、数据与备份位置；测试可替换为临时目录。
+    struct Locations {
+        var downloads: URL
+        var data: URL
+        var backupRoot: URL
+        var resultFile: URL
+
+        static var standard: Locations {
+            Locations(
+                downloads: UpdatePaths.downloadsDirectory,
+                data: UpdatePaths.dataDirectory,
+                backupRoot: UpdatePaths.backupRoot,
+                resultFile: UpdatePaths.resultFile
+            )
+        }
+    }
+
+    typealias EditingSnapshot = (isEditing: Bool, drafts: [String])
+
     static let shared = UpdateController()
 
     @Published private(set) var phase: Phase = .idle
@@ -26,6 +45,9 @@ final class UpdateController: ObservableObject {
     private let feedURL: URL
     private let architecture: String
     private let appURL: URL
+    private let locations: Locations
+    private let editingProbe: (() -> EditingSnapshot)?
+    private let terminate: () -> Void
     private var package: UpdatePackage?
     private var availablePhase: Phase?
     private var task: Task<Void, Never>?
@@ -35,13 +57,19 @@ final class UpdateController: ObservableObject {
         feedURL: URL = UpdatePaths.feedURL,
         currentVersion: AppVersion? = .current,
         architecture: String = CPUArchitecture.current,
-        appURL: URL = Bundle.main.bundleURL
+        appURL: URL = Bundle.main.bundleURL,
+        locations: Locations = .standard,
+        editingProbe: (() -> EditingSnapshot)? = nil,
+        terminate: @escaping () -> Void = { NSApp.terminate(nil) }
     ) {
         self.installer = installer
         self.feedURL = feedURL
         self.currentVersion = currentVersion
         self.architecture = architecture
         self.appURL = appURL
+        self.locations = locations
+        self.editingProbe = editingProbe
+        self.terminate = terminate
     }
 
     var isBusy: Bool {
@@ -90,22 +118,18 @@ final class UpdateController: ObservableObject {
     }
 
     func install() {
-        guard case .available = phase, let package, let appState else { return }
-        let input = UpdatePreflight.input(
-            appURL: appURL,
-            isEditing: appState.editing != nil,
-            drafts: Array(appState.drafts.values)
-        )
+        guard case .available = phase, let package, let snapshot = editingSnapshot() else { return }
+        let input = UpdatePreflight.input(appURL: appURL, isEditing: snapshot.isEditing, drafts: snapshot.drafts)
         if let problem = UpdatePreflight.check(input) {
             phase = .failed(problem.message)
             return
         }
 
-        let installer = installer, target = appURL
+        let installer = installer, target = appURL, locations = locations
         phase = .downloading(0)
         task = Task {
             do {
-                let folder = UpdatePaths.downloadsDirectory
+                let folder = locations.downloads
                 let dmg = folder.appendingPathComponent(package.dmgName)
                 let checksum = folder.appendingPathComponent(package.dmgName + ".sha256")
                 try await installer.download(package.dmgURL, to: dmg) { value in
@@ -124,8 +148,8 @@ final class UpdateController: ObservableObject {
                     let staged = try installer.stage(dmg: dmg, nextTo: target, expectedVersion: package.version)
                     do {
                         let backup = try installer.backup(
-                            dataDirectory: UpdatePaths.dataDirectory,
-                            backupRoot: UpdatePaths.backupRoot,
+                            dataDirectory: locations.data,
+                            backupRoot: locations.backupRoot,
                             defaultsDomain: UpdatePaths.bundleIdentifier
                         )
                         return (staged, backup)
@@ -135,15 +159,27 @@ final class UpdateController: ObservableObject {
                     }
                 }.value
 
+                // 下载与准备期间面板仍可使用；退出前再检查一次，避免丢掉刚开始的编辑或草稿。
+                if let snapshot = editingSnapshot(),
+                   let problem = UpdatePreflight.check(
+                       UpdatePreflight.input(appURL: target, isEditing: snapshot.isEditing, drafts: snapshot.drafts)
+                   ) {
+                    try? FileManager.default.removeItem(at: staged.stagingDirectory)
+                    phase = .failed(problem.message)
+                    return
+                }
+
                 do {
-                    try installer.launchHelper(staged: staged, target: target, backup: backup, version: package.version)
+                    try installer.launchHelper(
+                        staged: staged, target: target, backup: backup, version: package.version, resultFile: locations.resultFile
+                    )
                 } catch {
                     try? FileManager.default.removeItem(at: staged.stagingDirectory)
                     throw error
                 }
                 try? FileManager.default.removeItem(at: dmg)
                 phase = .relaunching
-                NSApp.terminate(nil)
+                terminate()
             } catch {
                 if error is CancellationError || (error as? UpdateError) == .cancelled {
                     phase = availablePhase ?? .idle
@@ -158,6 +194,12 @@ final class UpdateController: ObservableObject {
     func cancel() {
         guard case .downloading = phase else { return }
         task?.cancel()
+    }
+
+    private func editingSnapshot() -> EditingSnapshot? {
+        if let editingProbe { return editingProbe() }
+        guard let appState else { return nil }
+        return (appState.editing != nil, Array(appState.drafts.values))
     }
 
     func waitForCurrentTask() async {
