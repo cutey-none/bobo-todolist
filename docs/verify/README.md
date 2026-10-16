@@ -347,3 +347,24 @@ QT_RENDER_SCREENSHOT="$PWD/docs/verify/82-long-description-lazy-rendering.png" \
 ```
 
 本次未在旧 macOS 系统上运行，也未测量用户实际附件文件。
+
+## 应用内更新（2026-10-16）
+
+在会话临时目录中把 0.0.1 安装到独立的 `Apps/` 目录，使用独立的 `QT_DATA_DIR` 与 `QT_BACKUP_DIR`，并以 `QT_UPDATE_FEED_URL` 指向本地 `releases/latest` 格式的 JSON。新版本 DMG 由 `macos/package-dmg.sh` 以 0.0.2 版本号真实打包，打包后 `Info.plist` 已恢复为 0.0.1（`git checkout`）。界面操作通过辅助功能脚本点击设置窗口中的真实按钮完成。
+
+- **升级成功**：应用退出后由助手脚本替换并自动重新打开，弹窗「已升级到 0.0.2」。安装位置的应用变为 0.0.2，备份目录 `update-<时间>/` 中有 0.0.1 的 `Previous.app`、`Data/` 和 `Settings.plist`。新应用严格验签通过，没有 `com.apple.quarantine` 属性，`Apps/` 下没有 `.quadrant-update.*` 残留。重新打开的实例仍然读取隔离数据目录（`lsof` 确认），真实数据目录和真实备份目录都没有被改动。
+- **数据不变**：备份中的 `Data/` 与升级前的快照逐文件 SHA-256 一致；0.0.2 打开并退出后，数据目录与升级前快照仍然一致（以上比对均排除 SQLite `-shm`）。升级前后的两条事项相同。
+- **校验失败**：把 `.sha256` 篡改为全 0 后，升级在校验阶段停止并显示红字；没有建立备份，也没有暂存残留。运行时发现提示写着「已丢弃」，但安装包仍留在下载目录，已在 `fix: delete a downloaded package that fails its checksum` 中修复（截图 86 拍摄于修复前，界面文案相同）。
+- **下载与取消**：通过限速的本地 HTTP 服务器下载，界面显示进度条与「取消」；点「取消」后回到「发现新版本 0.0.2」，半成品 DMG 被删除，没有建立备份。
+- **设置窗口溢出**：新增区块后，「退出应用」被固定高度的窗口裁掉，已改为可滚动（`fix: keep every settings section reachable by scrolling`），截图 83–86 均为滚动到底部后的画面。
+- 启动时弹出结果提示，`last-result.json` 读取后即被删除（另以伪造的结果文件单独验证，路径中含中文和空格）。
+
+| 截图 | 证明 |
+| --- | --- |
+| [83-update-up-to-date.png](83-update-up-to-date.png) | 远端版本与本机相同时显示「已是最新版本」；滚动到底部可见「退出应用」。 |
+| [84-update-available.png](84-update-available.png) | 发现 0.0.2，显示 Release 说明（3 行，可展开）和「升级到 0.0.2」。 |
+| [85-update-downloading.png](85-update-downloading.png) | 限速下载时显示 25% 进度和「取消」。 |
+| [86-update-checksum-failed.png](86-update-checksum-failed.png) | 校验和不符时红字提示，未替换应用。 |
+| [87-update-relaunched.png](87-update-relaunched.png) | 助手替换后自动重新打开，弹窗「已升级到 0.0.2」并给出备份位置。 |
+
+菜单栏右键「检查更新…」没有在运行时点到：测试时状态栏图标被前台应用的菜单遮住，只验证了代码接线。另外没有在真实 GitHub Release 上端到端运行（需要发布 0.0.2 后再验证），也没有在 Intel Mac 上运行。
