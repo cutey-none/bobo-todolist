@@ -16,3 +16,6 @@ macos/build/
 # Local archives
 *.zip
 
+
+# Local codegraph index
+.codegraph/
