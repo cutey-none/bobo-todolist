@@ -1,6 +1,6 @@
 # 四象限待办 · macOS 原生应用
 
-贴边悬浮的四象限待办工具，SwiftUI + SwiftData 实现，无网络、无账号、数据只存本机。
+贴边悬浮的四象限待办工具，SwiftUI + SwiftData 实现，无账号、数据只存本机；仅在手动「检查更新」时访问 GitHub。
 
 ## 环境准备
 
@@ -84,6 +84,8 @@ shasum -a 256 -c QuadrantTodo_0.0.1_arm64.dmg.sha256
 
 发布时一并提供 DMG 与 `.sha256` 文件。v0.0.1 已通过 GitHub Releases 提供预编译安装包；后续发布仍需维护者上传，当前没有自动发布工作流。
 
+**应用内更新依赖的发版约定**：Release 的 tag 必须是 `v<版本>`，并与 `Resources/Info.plist` 的 `CFBundleShortVersionString` 一致（例如 `v0.0.2` 对应 `0.0.2`）；附件保持脚本生成的原名 `QuadrantTodo_<版本>_<arch>.dmg` 与 `.dmg.sha256`，不要改名；该 Release 必须是最新的正式版（预发布不会被 `releases/latest` 返回）。缺少某个架构的附件时，该架构的用户会看到「暂无适用于本机芯片的安装包」。
+
 ### 下载后的首次打开
 
 应用使用 ad-hoc 签名；**没有 Developer ID 签名或 Apple 公证**，因此下载后的首次启动可能被 Gatekeeper 拦截。确认来源可信后先尝试打开，再到「系统设置 → 隐私与安全性」选择「仍要打开」。也可只移除已安装应用的隔离属性：
@@ -99,6 +101,21 @@ codesign --verify --deep --strict /Applications/QuadrantTodo.app
 ```
 
 不要全局关闭 Gatekeeper。DMG 只是安装容器，不代表已经公证。
+
+### 在应用内更新
+
+菜单栏图标右键 →「检查更新…」，或在设置窗口的「关于与更新」区点「检查更新」。应用只在这时访问 GitHub Releases，平时不联网。
+
+发现新版本后点「升级到 x.y.z」，应用会依次：
+
+1. 检查没有正在编辑的事项和未提交的输入草稿；应用须位于「应用程序」或 `~/Applications` 等可写目录（不会索要管理员密码）。
+2. 下载本机架构的 DMG，并用发布附带的 `.sha256` 校验；挂载后复制到同目录下的隐藏暂存位置，验证签名、应用标识和版本号。
+3. 把整个数据目录和设置备份到 `~/Library/Application Support/QuadrantTodoBackups/update-<时间>/`。
+4. 退出应用，由助手脚本替换 `.app` 并重新打开；旧版本保留为备份目录中的 `Previous.app`。替换失败时自动还原旧版本。
+
+重新打开后会弹窗告知结果。整个过程只替换应用包，不写入 `~/Library/Application Support/QuadrantTodo/` 和设置。下载或校验失败时，现有应用与数据都不会改动。如需手动回滚，退出应用后把备份目录里的 `Previous.app` 拖回原位置即可。
+
+开发验证可用 `QT_UPDATE_FEED_URL` 指向本地的 `releases/latest` 格式 JSON（支持 `file://`）。
 
 ### 用 DMG 更新或卸载
 
@@ -222,6 +239,7 @@ macos/
       AttachmentStore.swift    描述图片附件的保存与读取
       ProgressEntry.swift      旧进度数据模型，仅用于启动迁移与兼容
       ImageAttachment.swift    图片压缩与规范化
+      Update/                  应用内更新：版本比较、Release 解析、下载校验、备份与替换助手
     Views/                     贴边条、面板、象限卡片、任务行、编辑浮层、设置
   Resources/Info.plist         LSUIElement / 版本信息 / 图标配置
   Resources/AppIcon.png        Logo 原图
