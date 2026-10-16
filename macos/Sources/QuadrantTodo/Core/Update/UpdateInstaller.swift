@@ -88,7 +88,10 @@ struct UpdateInstaller: Sendable {
               let expected = UpdateChecksum.expectedHash(in: text, fileName: fileName) else {
             throw UpdateError.invalidChecksumFile
         }
-        guard try UpdateChecksum.sha256Hex(of: file) == expected else { throw UpdateError.checksumMismatch }
+        guard try UpdateChecksum.sha256Hex(of: file) == expected else {
+            try? FileManager.default.removeItem(at: file)
+            throw UpdateError.checksumMismatch
+        }
     }
 
     /// 挂载 DMG，把其中的应用复制到目标应用同目录下的隐藏暂存目录（同卷，保证替换时 mv 原子），并验证签名与版本。

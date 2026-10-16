@@ -90,6 +90,16 @@ final class UpdateInstallerTests: XCTestCase {
         }
     }
 
+    func testChecksumMismatchDiscardsDownloadedFile() throws {
+        let file = root.appendingPathComponent("a.dmg")
+        try Data("abc".utf8).write(to: file)
+        let bad = root.appendingPathComponent("bad.sha256")
+        try Data("\(String(repeating: "0", count: 64))  a.dmg\n".utf8).write(to: bad)
+
+        XCTAssertThrowsError(try UpdateInstaller().verifyChecksum(file: file, checksumFile: bad, fileName: "a.dmg"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path), "校验失败的安装包应被删除")
+    }
+
     func testStageCopiesAppNextToTarget() throws {
         let dmg = try makeDMG(version: "0.0.2")
         let apps = root.appendingPathComponent("Apps")
