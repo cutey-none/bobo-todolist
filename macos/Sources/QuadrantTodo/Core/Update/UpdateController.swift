@@ -47,7 +47,7 @@ final class UpdateController: ObservableObject {
     private let appURL: URL
     private let locations: Locations
     private let editingProbe: (() -> EditingSnapshot)?
-    private let terminate: () -> Void
+    private let terminate: @MainActor () -> Void
     private var package: UpdatePackage?
     private var availablePhase: Phase?
     private var task: Task<Void, Never>?
@@ -60,7 +60,7 @@ final class UpdateController: ObservableObject {
         appURL: URL = Bundle.main.bundleURL,
         locations: Locations = .standard,
         editingProbe: (() -> EditingSnapshot)? = nil,
-        terminate: @escaping () -> Void = { NSApp.terminate(nil) }
+        terminate: @escaping @MainActor () -> Void = { @MainActor in NSApp.terminate(nil) }
     ) {
         self.installer = installer
         self.feedURL = feedURL
