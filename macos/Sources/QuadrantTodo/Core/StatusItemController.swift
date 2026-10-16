@@ -1,6 +1,6 @@
 import AppKit
 
-/// 菜单栏入口：展开 / 收起、钉住、设置与退出（PRD 4.3 / 4.4）。
+/// 菜单栏入口：展开 / 收起、钉住、检查更新、设置与退出（PRD 4.3 / 4.4）。
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
@@ -8,12 +8,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let settings: SettingsStore
     private weak var controller: PanelController?
     private let openSettings: () -> Void
+    private let checkForUpdates: () -> Void
 
-    init(state: AppState, settings: SettingsStore, controller: PanelController, openSettings: @escaping () -> Void) {
+    init(state: AppState, settings: SettingsStore, controller: PanelController, openSettings: @escaping () -> Void, checkForUpdates: @escaping () -> Void) {
         self.state = state
         self.settings = settings
         self.controller = controller
         self.openSettings = openSettings
+        self.checkForUpdates = checkForUpdates
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -64,6 +66,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         fsItem.state = settings.showInFullScreen ? .on : .off
 
         menu.addItem(.separator())
+        menu.addItem(withTitle: "检查更新…", action: #selector(checkUpdates), keyEquivalent: "")
         menu.addItem(withTitle: "设置…", action: #selector(showSettings), keyEquivalent: ",")
         menu.addItem(.separator())
         menu.addItem(withTitle: "退出四象限待办", action: #selector(quit), keyEquivalent: "q")
@@ -88,5 +91,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func toggleAlwaysOnTop() { settings.alwaysOnTop.toggle() }
     @objc private func toggleFullScreenVisibility() { settings.showInFullScreen.toggle() }
     @objc private func showSettings() { openSettings() }
+    @objc private func checkUpdates() { checkForUpdates() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

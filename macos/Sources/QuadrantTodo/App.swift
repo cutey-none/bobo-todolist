@@ -51,8 +51,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state: appState,
             settings: settings,
             controller: controller,
-            openSettings: { AppDelegate.openSettingsWindow() }
+            openSettings: { AppDelegate.openSettingsWindow() },
+            checkForUpdates: {
+                AppDelegate.openSettingsWindow()
+                UpdateController.shared.check()
+            }
         )
+        UpdateController.shared.appState = appState
 
         hotKeys = HotKeyCenter()
         registerHotKey()
@@ -66,6 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("QuadrantTodo: 启动即展开")
             appState.expand()
         }
+        // 助手脚本替换完成后会重新打开应用，这里告知升级结果。
+        DispatchQueue.main.async { AppDelegate.presentUpdateResultIfNeeded() }
         #if DEBUG
         DebugUIDriver.startIfRequested(window: controller.panel)
         #endif
@@ -88,6 +95,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
             NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
         }
+    }
+
+    static func presentUpdateResultIfNeeded() {
+        guard let result = UpdateResult.consume(at: UpdatePaths.resultFile) else { return }
+        let alert = NSAlert()
+        alert.alertStyle = result.succeeded ? .informational : .warning
+        alert.messageText = result.title
+        alert.informativeText = result.detail
+        NSApp.activate()
+        alert.runModal()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
