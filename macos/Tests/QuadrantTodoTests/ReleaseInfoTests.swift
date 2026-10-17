@@ -73,4 +73,30 @@ final class ReleaseInfoTests: XCTestCase {
     func testCurrentArchitectureIsKnown() {
         XCTAssertTrue(["arm64", "x86_64"].contains(CPUArchitecture.current))
     }
+
+    func testRateLimitFallbackUsesTheReleasesWebPage() {
+        let api = URL(string: "https://api.github.com/repos/cutey-none/bobo-todolist/releases/latest")!
+        XCTAssertEqual(ReleaseInfo.webFallbackURL(forAPI: api),
+                       URL(string: "https://github.com/cutey-none/bobo-todolist/releases/latest")!)
+        XCTAssertNil(ReleaseInfo.webFallbackURL(forAPI: URL(fileURLWithPath: "/tmp/latest.json")))
+        XCTAssertNil(ReleaseInfo.webFallbackURL(forAPI: URL(string: "https://example.com/repos/a/b/releases/latest")!))
+    }
+
+    func testTagRedirectBuildsDownloadLinksFromReleaseNaming() {
+        let tagPage = URL(string: "https://github.com/cutey-none/bobo-todolist/releases/tag/v0.0.3")!
+        let info = ReleaseInfo.fromTagRedirect(tagPage, architectures: ["arm64"])
+        let base = "https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.3/"
+        let expected = UpdatePackage(
+            version: AppVersion("0.0.3")!,
+            dmgName: "QuadrantTodo_0.0.3_arm64.dmg",
+            dmgURL: URL(string: base + "QuadrantTodo_0.0.3_arm64.dmg")!,
+            checksumURL: URL(string: base + "QuadrantTodo_0.0.3_arm64.dmg.sha256")!
+        )
+        XCTAssertEqual(info?.lookup(current: AppVersion("0.0.2")!, architecture: "arm64"), .available(expected, notes: ""))
+        XCTAssertEqual(info?.lookup(current: AppVersion("0.0.2")!, architecture: "x86_64"), .missingPackage(AppVersion("0.0.3")!))
+    }
+
+    func testRedirectWithoutTagIsRejected() {
+        XCTAssertNil(ReleaseInfo.fromTagRedirect(URL(string: "https://github.com/cutey-none/bobo-todolist/releases")!, architectures: ["arm64"]))
+    }
 }

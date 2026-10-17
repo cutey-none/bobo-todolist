@@ -32,12 +32,37 @@ struct UpdateInstaller: Sendable {
                 throw UpdateError.network(error.localizedDescription)
             }
             if let http = response as? HTTPURLResponse {
-                if http.statusCode == 403 || http.statusCode == 429 { throw UpdateError.rateLimited }
+                if http.statusCode == 403 || http.statusCode == 429 {
+                    guard let page = ReleaseInfo.webFallbackURL(forAPI: url) else { throw UpdateError.rateLimited }
+                    return try await fetchReleaseFromWebPage(page)
+                }
                 guard (200..<300).contains(http.statusCode) else { throw UpdateError.network("HTTP \(http.statusCode)") }
             }
             data = body
         }
         do { return try ReleaseInfo.decode(data) } catch { throw UpdateError.badResponse }
+    }
+
+    /// API 被限流时的后备：跟随网页重定向得到最新 tag，并只保留校验文件确实存在的架构。
+    private func fetchReleaseFromWebPage(_ page: URL) async throws -> ReleaseInfo {
+        let finalURL: URL?
+        do {
+            finalURL = try await session.data(for: URLRequest(url: page, timeoutInterval: 15)).1.url
+        } catch {
+            throw UpdateError.network(error.localizedDescription)
+        }
+        guard let finalURL, let info = ReleaseInfo.fromTagRedirect(finalURL, architectures: ["arm64", "x86_64"]) else {
+            throw UpdateError.badResponse
+        }
+        var available: [ReleaseAsset] = []
+        for checksum in info.assets where checksum.name.hasSuffix(".sha256") {
+            var request = URLRequest(url: checksum.downloadURL, timeoutInterval: 15)
+            request.httpMethod = "HEAD"
+            guard let http = try? await session.data(for: request).1 as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode) else { continue }
+            available += info.assets.filter { $0.name == checksum.name || $0.name + ".sha256" == checksum.name }
+        }
+        return ReleaseInfo(tagName: info.tagName, body: nil, assets: available)
     }
 
     /// 下载到指定位置，按已接收字节报告 0...1 的进度；取消时抛出 `.cancelled` 并删除半成品。
