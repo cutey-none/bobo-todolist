@@ -40,6 +40,21 @@ final class TaskTitleHoverView: NSView {
 struct TaskTitleTooltip {
     let title: String
     let bounds: Anchor<CGRect>
+    /// 标题单行完整显示所需的宽度，用于让提示框刚好包住文字。
+    let textWidth: CGFloat
+
+    static let padding: CGFloat = 10
+    static let maxWidth: CGFloat = 440
+
+    /// 只有标题在行内被截断时才需要悬停提示；不足 1pt 的差异视为排版取整。
+    static func isTruncated(fullWidth: CGFloat, shownWidth: CGFloat) -> Bool {
+        fullWidth - shownWidth >= 1
+    }
+
+    /// 提示框宽度：短标题刚好包住文字（多留 1pt 防止意外折行），超长时封顶后换行。
+    static func bubbleWidth(textWidth: CGFloat, containerWidth: CGFloat) -> CGFloat {
+        min(ceil(textWidth) + padding * 2 + 1, maxWidth, max(0, containerWidth - 48))
+    }
 }
 
 struct TaskTitleTooltipKey: PreferenceKey {
@@ -60,7 +75,7 @@ struct TaskTitleTooltipOverlay: View {
         GeometryReader { proxy in
             if let tooltip {
                 let rect = proxy[tooltip.bounds]
-                let width = min(440, max(0, proxy.size.width - 48))
+                let width = TaskTitleTooltip.bubbleWidth(textWidth: tooltip.textWidth, containerWidth: proxy.size.width)
                 let x = min(max(24, rect.minX), proxy.size.width - width - 24)
                 let above = rect.midY > proxy.size.height / 2
                 Text(tooltip.title)
@@ -68,7 +83,7 @@ struct TaskTitleTooltipOverlay: View {
                     .foregroundStyle(.primary)
                     .lineLimit(nil)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(10)
+                    .padding(TaskTitleTooltip.padding)
                     .frame(width: width, alignment: .leading)
                     .background(Theme.panelBackground, in: RoundedRectangle(cornerRadius: 7))
                     .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Theme.divider))

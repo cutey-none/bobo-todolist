@@ -23,6 +23,12 @@ struct TaskRowView: View {
 
     @State private var titleHovering = false
     @State private var rowHovering = false
+    @State private var titleFullWidth: CGFloat = 0
+    @State private var titleShownWidth: CGFloat = 0
+
+    private var isTitleTruncated: Bool {
+        TaskTitleTooltip.isTruncated(fullWidth: titleFullWidth, shownWidth: titleShownWidth)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -102,6 +108,15 @@ struct TaskRowView: View {
                     .strikethrough(task.isCompleted, color: Theme.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleShownWidth = $0 }
+                    // 不参与布局的完整单行副本：与实际宽度比较，判断标题是否被截断。
+                    .background(alignment: .leading) {
+                        Text(task.title)
+                            .font(.system(size: 13))
+                            .fixedSize()
+                            .hidden()
+                            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleFullWidth = $0 }
+                    }
                     .layoutPriority(1)
                 Image(systemName: "pencil")
                     .font(.system(size: 10, weight: .medium))
@@ -122,7 +137,9 @@ struct TaskRowView: View {
         .layoutPriority(1)
         .background(TaskTitleHoverRegion { titleHovering = $0 })
         .anchorPreference(key: TaskTitleTooltipKey.self, value: .bounds) { anchor in
-            titleHovering || isFocused ? TaskTitleTooltip(title: task.title, bounds: anchor) : nil
+            // 只在标题被截断时显示完整标题，未截断的标题悬停不弹提示。
+            (titleHovering || isFocused) && isTitleTruncated
+                ? TaskTitleTooltip(title: task.title, bounds: anchor, textWidth: titleFullWidth) : nil
         }
         .accessibilityLabel("编辑：\(task.title)")
     }
