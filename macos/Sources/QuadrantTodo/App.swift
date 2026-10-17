@@ -7,12 +7,9 @@ import SwiftUI
 struct QuadrantTodoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
+    // SwiftUI 至少需要一个场景；设置窗口实际由 AppDelegate.settingsWindow 管理。
     var body: some Scene {
-        Settings {
-            SettingsView(settings: SettingsStore.shared, updater: UpdateController.shared) {
-                NSWorkspace.shared.activateFileViewerSelecting([PersistenceController.storeURL()])
-            }
-        }
+        Settings { EmptyView() }
     }
 }
 
@@ -90,12 +87,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// SwiftUI Settings 场景的标准打开方式（兼容不同系统版本的 selector 名称）。
-    static func openSettingsWindow() {
-        NSApp.activate()
-        if !NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+    private static let settingsWindow = SettingsWindowController {
+        SettingsView(settings: SettingsStore.shared, updater: UpdateController.shared) {
+            NSWorkspace.shared.activateFileViewerSelecting([PersistenceController.storeURL()])
         }
+    }
+
+    static func openSettingsWindow() {
+        settingsWindow.show()
     }
 
     static func presentUpdateResultIfNeeded() {
