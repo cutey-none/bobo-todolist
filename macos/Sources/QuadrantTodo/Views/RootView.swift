@@ -91,7 +91,7 @@ struct RootView: View {
                 Image(systemName: "trash")
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.secondaryText)
-                Text("已删除「\(undo.title)」")
+                Text(undo.message)
                     .font(.system(size: 11))
                     .lineLimit(1)
                 if state.undoQueue.count > 1 {
@@ -233,6 +233,7 @@ struct RootView: View {
 
             switch event.keyCode {
             case 53: // Esc
+                if state.focusedSubtaskField { return event }
                 if state.imagePreview != nil {
                     state.imagePreview = nil
                 } else if state.editing != nil {

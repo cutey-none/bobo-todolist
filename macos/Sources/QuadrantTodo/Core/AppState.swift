@@ -3,9 +3,29 @@ import Combine
 import SwiftUI
 
 struct UndoEntry: Identifiable {
+    enum Kind {
+        case task(TaskSnapshot)
+        case subtask(SubtaskSnapshot)
+        case promotion(SubtaskSnapshot, promotedTaskID: UUID)
+    }
+
     let id = UUID()
-    let snapshot: TaskSnapshot
+    let kind: Kind
     let title: String
+
+    var message: String {
+        switch kind {
+        case .task: return "已删除「\(title)」"
+        case .subtask: return "已删除子待办「\(title)」"
+        case .promotion: return "已将「\(title)」提升为独立待办"
+        }
+    }
+
+    /// 被删除事项的描述，用于撤销期结束后清理附件。
+    var note: String? {
+        if case .task(let snapshot) = kind { return snapshot.note }
+        return nil
+    }
 }
 
 struct InputFocusRequest: Equatable {
@@ -44,6 +64,10 @@ final class AppState: ObservableObject {
     @Published var editorCloseRequest = 0
     /// 可逐项撤销的删除队列，末尾是最新删除的事项。
     @Published private(set) var undoQueue: [UndoEntry] = []
+    /// 子待办改名中或添加输入行有内容的列表（各列表实例一个标识），用于保持面板展开。
+    @Published var activeSubtaskInputs: Set<UUID> = []
+    /// 焦点在子待办输入框时，Esc 交给输入框处理，不收起面板或关闭浮层。
+    @Published var focusedSubtaskField = false
     @Published private(set) var notice: Notice?
     @Published var focusedTaskID: UUID?
     /// 主界面中展开查看描述的事项：同一时刻只展开一个，含已完成区（UI PRD 5.1 建议默认）。
@@ -115,7 +139,8 @@ final class AppState: ObservableObject {
 
     /// 有未提交的输入草稿时保持面板展开，避免打断录入。
     var hasUnsubmittedDraft: Bool {
-        drafts.values.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        !activeSubtaskInputs.isEmpty
+            || drafts.values.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     // MARK: - 任务操作
@@ -167,24 +192,44 @@ final class AppState: ObservableObject {
             show("删除失败，请重试", isError: true)
             return false
         }
-        let entry = UndoEntry(snapshot: snapshot, title: title)
-        undoQueue.append(entry)
-        // 每项删除有各自的撤销窗口，撤销一项不影响其他项的剩余时间。
-        DispatchQueue.main.asyncAfter(deadline: .now() + Metrics.undoWindow) { [weak self] in
-            self?.expireUndo(entry.id)
-        }
+        enqueueUndo(UndoEntry(kind: .task(snapshot), title: title))
         if focusedTaskID == id { focusedTaskID = nil }
         if expandedTaskID == id { expandedTaskID = nil }
         return true
     }
 
+    private func enqueueUndo(_ entry: UndoEntry) {
+        undoQueue.append(entry)
+        // 每项有各自的撤销窗口，撤销一项不影响其他项的剩余时间。
+        DispatchQueue.main.asyncAfter(deadline: .now() + Metrics.undoWindow) { [weak self] in
+            self?.expireUndo(entry.id)
+        }
+    }
+
     func performUndo() {
         guard let entry = undoQueue.last else { return }
-        guard repository.restore(entry.snapshot) else {
-            show("撤销失败，请重试", isError: true)
-            return
+        let restored: Bool
+        let parentID: UUID?
+        switch entry.kind {
+        case .task(let snapshot):
+            restored = repository.restore(snapshot)
+            parentID = nil
+        case .subtask(let snapshot):
+            restored = repository.restoreSubtask(snapshot)
+            parentID = snapshot.parentID
+        case .promotion(let snapshot, let promotedTaskID):
+            restored = repository.undoPromotion(snapshot, promotedTaskID: promotedTaskID)
+            parentID = snapshot.parentID
         }
-        undoQueue.removeAll { $0.id == entry.id }
+        if restored {
+            undoQueue.removeAll { $0.id == entry.id }
+        } else if let parentID, repository.task(withID: parentID) == nil {
+            // 父待办已被删除：这一项再也无法撤销，移出队列，避免孤儿子待办。
+            undoQueue.removeAll { $0.id == entry.id }
+            show("原待办已删除，无法撤销", isError: true)
+        } else {
+            show("撤销失败，请重试", isError: true)
+        }
     }
 
     /// 退出后不再能撤销，立即回收待删除附件。
@@ -196,8 +241,8 @@ final class AppState: ObservableObject {
         let expired = undoQueue.filter { $0.id == id }
         undoQueue.removeAll { $0.id == id }
         repository.removeUnusedAttachments(
-            expired.flatMap { MarkdownDocument.imageSources(in: $0.snapshot.note ?? "") },
-            preserving: undoQueue.compactMap { $0.snapshot.note }
+            expired.flatMap { MarkdownDocument.imageSources(in: $0.note ?? "") },
+            preserving: undoQueue.compactMap(\.note)
         )
         // 所有撤销窗口都结束后，旧 progress 记录才不再需要保留。
         if undoQueue.isEmpty { repository.purgeOrphanProgress() }
@@ -257,6 +302,58 @@ final class AppState: ObservableObject {
 
     func requestEditorClose() {
         editorCloseRequest += 1
+    }
+
+    // MARK: - 子待办
+
+    /// 成功返回 nil；失败返回提示文案，输入行据此保留文本。
+    func addSubtask(_ title: String, to parentID: UUID) -> String? {
+        switch TaskTitle.validate(title) {
+        case .failure(let problem):
+            return problem.message
+        case .success(let valid):
+            return repository.addSubtask(title: valid, to: parentID) == nil ? "保存失败，请重试" : nil
+        }
+    }
+
+    func renameSubtask(_ item: SubtaskItem, to title: String) -> String? {
+        switch TaskTitle.validate(title) {
+        case .failure(let problem):
+            return problem.message
+        case .success(let valid):
+            return repository.renameSubtask(item, to: valid) ? nil : "保存失败，请重试"
+        }
+    }
+
+    func toggleSubtask(_ item: SubtaskItem) {
+        let title = item.title
+        if !repository.toggleSubtask(item) { show("保存失败，「\(title)」保持原状态", isError: true) }
+    }
+
+    func moveSubtask(_ item: SubtaskItem, by delta: Int) {
+        if !repository.moveSubtask(item, by: delta) { show("移动失败，请重试", isError: true) }
+    }
+
+    func moveSubtask(_ item: SubtaskItem, before targetID: UUID?) {
+        if !repository.moveSubtask(item, before: targetID) { show("移动失败，请重试", isError: true) }
+    }
+
+    func deleteSubtask(_ item: SubtaskItem) {
+        let title = item.title
+        guard let snapshot = repository.deleteSubtask(item) else {
+            show("删除失败，请重试", isError: true)
+            return
+        }
+        enqueueUndo(UndoEntry(kind: .subtask(snapshot), title: title))
+    }
+
+    func promoteSubtask(_ item: SubtaskItem) {
+        let title = item.title
+        guard let result = repository.promoteSubtask(item) else {
+            show("提升失败，请重试", isError: true)
+            return
+        }
+        enqueueUndo(UndoEntry(kind: .promotion(result.snapshot, promotedTaskID: result.task.id), title: title))
     }
 
     // MARK: - 键盘选择
