@@ -82,7 +82,13 @@ Intel 本机构建的文件名是 `x86_64`。版本从 `Resources/Info.plist` �
 shasum -a 256 -c QuadrantTodo_0.0.1_arm64.dmg.sha256
 ```
 
-发布时一并提供 DMG 与 `.sha256` 文件。v0.0.1 已通过 GitHub Releases 提供预编译安装包；后续发布仍需维护者上传，当前没有自动发布工作流。
+发布时一并提供 DMG 与 `.sha256` 文件。维护者在干净且与远端同步的 `main` 上执行一条命令即可发版：
+
+```bash
+macos/release.sh 0.0.3 "本次更新说明"
+```
+
+脚本会更新 `Info.plist` 版本号、运行测试、打包 DMG，然后提交、打 `v0.0.3` tag、推送，并按下面的命名约定创建 GitHub Release。已安装的应用随后可在「检查更新…」中直接升级，无需再手动下载 DMG。
 
 **应用内更新依赖的发版约定**：Release 的 tag 必须是 `v<版本>`，并与 `Resources/Info.plist` 的 `CFBundleShortVersionString` 一致（例如 `v0.0.2` 对应 `0.0.2`）；附件保持脚本生成的原名 `QuadrantTodo_<版本>_<arch>.dmg` 与 `.dmg.sha256`，不要改名；该 Release 必须是最新的正式版（预发布不会被 `releases/latest` 返回）。缺少某个架构的附件时，该架构的用户会看到「暂无适用于本机芯片的安装包」。
 
