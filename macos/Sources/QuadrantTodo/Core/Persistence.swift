@@ -4,6 +4,9 @@ import SwiftData
 /// SwiftData 容器（PRD 5.2）：本地 SQLite，无需账户与网络。
 @MainActor
 final class PersistenceController {
+    /// 应用的完整 schema；新增实体属于 SwiftData 轻量迁移，旧库可直接打开。
+    static let modelTypes: [any PersistentModel.Type] = [TaskItem.self, ProgressEntry.self, SubtaskItem.self]
+
     let container: ModelContainer
 
     /// 与 SwiftUI `@Query` 使用同一个上下文，避免跨上下文删除 / 更新不生效。
@@ -14,7 +17,7 @@ final class PersistenceController {
         let configuration = ModelConfiguration(url: storeURL)
         do {
             container = try ModelContainer(
-                for: TaskItem.self, ProgressEntry.self,
+                for: Schema(Self.modelTypes),
                 configurations: inMemory ? ModelConfiguration(isStoredInMemoryOnly: true) : configuration
             )
         } catch {
@@ -22,7 +25,7 @@ final class PersistenceController {
             NSLog("QuadrantTodo: 打开本地数据库失败，改用内存存储 %@", String(reflecting: error))
             if !inMemory { Self.backupBrokenStore(at: storeURL) }
             container = try! ModelContainer(
-                for: TaskItem.self, ProgressEntry.self,
+                for: Schema(Self.modelTypes),
                 configurations: ModelConfiguration(isStoredInMemoryOnly: true)
             )
         }

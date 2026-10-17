@@ -181,10 +181,7 @@ final class TaskDescriptionTests: XCTestCase {
 
     @MainActor
     private func makeRepository() throws -> (ModelContext, TaskRepository) {
-        let container = try ModelContainer(
-            for: TaskItem.self, ProgressEntry.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
+        let container = try SubtaskTestSupport.makeContainer()
         retainedContainers.append(container)
         let repository = TaskRepository(context: container.mainContext,
                                         attachments: AttachmentStore(directory: attachmentDirectory))

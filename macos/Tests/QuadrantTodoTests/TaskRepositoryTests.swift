@@ -8,10 +8,7 @@ final class TaskRepositoryTests: XCTestCase {
     private var repository: TaskRepository!
 
     override func setUp() async throws {
-        container = try ModelContainer(
-            for: TaskItem.self, ProgressEntry.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
+        container = try SubtaskTestSupport.makeContainer()
         repository = TaskRepository(context: container.mainContext)
         TaskRepository.simulatesSaveFailure = false
     }
