@@ -368,3 +368,16 @@ QT_RENDER_SCREENSHOT="$PWD/docs/verify/82-long-description-lazy-rendering.png" \
 | [87-update-relaunched.png](87-update-relaunched.png) | 助手替换后自动重新打开，弹窗「已升级到 0.0.2」并给出备份位置。 |
 
 菜单栏右键「检查更新…」没有在运行时点到：测试时状态栏图标被前台应用的菜单遮住，只验证了代码接线。另外没有在真实 GitHub Release 上端到端运行（需要发布 0.0.2 后再验证），也没有在 Intel Mac 上运行。
+
+## 菜单栏「检查更新…」与 API 限流后备（2026-10-17）
+
+在 macOS 26.5.2 上，已安装到 `/Applications` 的 0.0.2，通过真实右键菜单栏图标点「检查更新…」验证：
+
+- **修复前**：点击无反应。系统日志为 `[SwiftUI] Please use SettingsLink for opening the Settings scene.`，即 `showSettingsWindow:` 被忽略，设置窗口不出现（「设置…」同样无效）；随后打开窗口时显示「请求过于频繁」，原因是代理出口 IP 的 GitHub API 匿名配额（60 次/小时）已被耗尽，`api.github.com` 返回 403。
+- **修复后**：设置窗口改由应用自管的 NSWindow 承载，菜单点击后立即出现；API 仍返回 403 时改走 `github.com/.../releases/latest` 重定向，得到「已是最新版本」。限流后备约需 10 秒，且不显示 Release 说明。
+
+| 截图 | 证明 |
+| --- | --- |
+| [88-menu-check-opens-settings-rate-limited.png](88-menu-check-opens-settings-rate-limited.png) | 从菜单栏「检查更新…」打开设置窗口；在 API 返回 403 的情况下仍显示「已是最新版本」。 |
+
+尚未验证：有新版本时通过网页后备完成一次真实的下载与替换（需要发布 0.0.3）。
