@@ -13,7 +13,13 @@ private struct LiquidGlassModifier<S: InsettableShape>: ViewModifier {
                 .background(Theme.panelBackground, in: shape)
                 .overlay(shape.strokeBorder(Theme.hairline, lineWidth: 1).allowsHitTesting(false))
         } else if #available(macOS 26.0, *) {
-            content.glassEffect(.regular.tint(tint).interactive(interactive), in: shape)
+            if interactive {
+                content.glassEffect(.regular.tint(tint).interactive(), in: shape)
+            } else {
+                // 玻璃画在背景层：直接对内容使用 glassEffect 时，内部的 dropDestination
+                // 收不到拖放（事项拖拽排序 / 跨象限会全部失效），点击则不受影响。
+                content.background { Color.clear.glassEffect(.regular.tint(tint), in: shape) }
+            }
         } else {
             content
                 .background(VisualEffectView(material: .popover).clipShape(shape))
