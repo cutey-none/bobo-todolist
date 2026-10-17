@@ -95,10 +95,16 @@ final class SubtaskStateTests: XCTestCase {
         XCTAssertFalse(state.hasUnsubmittedDraft)
     }
 
-    func testSubtaskFieldFocusIsTracked() {
+    /// 主面板与编辑浮层可能同时有子待办列表：任一列表的输入框有焦点都算，且各自只撤销自己的标记。
+    func testSubtaskFieldFocusIsTrackedPerList() {
+        let row = UUID(), popup = UUID()
         XCTAssertFalse(state.focusedSubtaskField)
-        state.focusedSubtaskField = true
-        XCTAssertTrue(state.focusedSubtaskField)
+        state.focusedSubtaskInputs.insert(row)
+        state.focusedSubtaskInputs.insert(popup)
+        state.focusedSubtaskInputs.remove(row)
+        XCTAssertTrue(state.focusedSubtaskField, "另一个列表仍有焦点")
+        state.focusedSubtaskInputs.remove(popup)
+        XCTAssertFalse(state.focusedSubtaskField)
     }
 
     func testFailedToggleShowsError() throws {

@@ -66,8 +66,13 @@ final class AppState: ObservableObject {
     @Published private(set) var undoQueue: [UndoEntry] = []
     /// 子待办改名中或添加输入行有内容的列表（各列表实例一个标识），用于保持面板展开。
     @Published var activeSubtaskInputs: Set<UUID> = []
+    /// 输入框有焦点的子待办列表（各列表实例一个标识）。主面板与编辑浮层可能同时各有一个列表。
+    @Published var focusedSubtaskInputs: Set<UUID> = []
+    /// 各父待办「添加子待办」输入框的未提交草稿；行收起或浮层关闭后再打开仍保留。
+    var subtaskDrafts: [UUID: String] = [:]
+
     /// 焦点在子待办输入框时，Esc 交给输入框处理，不收起面板或关闭浮层。
-    @Published var focusedSubtaskField = false
+    var focusedSubtaskField: Bool { !focusedSubtaskInputs.isEmpty }
     @Published private(set) var notice: Notice?
     @Published var focusedTaskID: UUID?
     /// 主界面中展开查看描述的事项：同一时刻只展开一个，含已完成区（UI PRD 5.1 建议默认）。

@@ -83,13 +83,19 @@ struct SubtaskListView: View {
             if pending { state.activeSubtaskInputs.insert(inputToken) } else { state.activeSubtaskInputs.remove(inputToken) }
         }
         .onChange(of: focus) { old, new in
-            state.focusedSubtaskField = new != nil
+            if new != nil { state.focusedSubtaskInputs.insert(inputToken) } else { state.focusedSubtaskInputs.remove(inputToken) }
             // 改名输入框失焦即保存；Esc 取消引起的失焦除外。
             if case .rename(let id)? = old, new != old, editingID == id, cancellingID != id { commitEdit() }
         }
+        .onAppear { draft = state.subtaskDrafts[parentID] ?? "" }
+        .onChange(of: draft) { _, text in
+            state.subtaskDrafts[parentID] = text.isEmpty ? nil : text
+        }
         .onDisappear {
+            // 行收起、事项移入已完成区或浮层关闭也算离开：保存正在进行的改名（草稿已存在 AppState）。
+            if editingID != nil, cancellingID == nil { commitEdit() }
             state.activeSubtaskInputs.remove(inputToken)
-            if focus != nil { state.focusedSubtaskField = false }
+            state.focusedSubtaskInputs.remove(inputToken)
         }
     }
 
