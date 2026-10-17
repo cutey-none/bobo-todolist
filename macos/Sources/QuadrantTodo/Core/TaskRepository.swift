@@ -38,7 +38,7 @@ struct TaskRepository {
     }
 
     /// 未完成列表末尾的排序值：新建与恢复未完成都追加到末尾。
-    private func endSortOrder(in quadrant: Quadrant, from tasks: [TaskItem]) -> Int {
+    func endSortOrder(in quadrant: Quadrant, from tasks: [TaskItem]) -> Int {
         (activeTasks(in: quadrant, from: tasks).map(\.sortOrder).max() ?? -1) + 1
     }
 
