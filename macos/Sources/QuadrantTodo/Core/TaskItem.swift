@@ -47,7 +47,7 @@ final class TaskItem {
     var sortKey: String { "\(sortOrder)-\(createdAt.timeIntervalSince1970)" }
 }
 
-/// 删除后可恢复的快照，用于 5 秒撤销。
+/// 删除后可恢复的快照（含其子待办），用于撤销。
 struct TaskSnapshot {
     let id: UUID
     let title: String
@@ -58,8 +58,9 @@ struct TaskSnapshot {
     let completedAt: Date?
     let dueAt: Date?
     let sortOrder: Int
+    let subtasks: [SubtaskSnapshot]
 
-    init(_ task: TaskItem) {
+    init(_ task: TaskItem, subtasks: [SubtaskSnapshot] = []) {
         id = task.id
         title = task.title
         note = task.note
@@ -69,6 +70,7 @@ struct TaskSnapshot {
         completedAt = task.completedAt
         dueAt = task.dueAt
         sortOrder = task.sortOrder
+        self.subtasks = subtasks
     }
 
     func makeTask() -> TaskItem {

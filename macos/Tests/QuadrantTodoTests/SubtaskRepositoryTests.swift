@@ -138,4 +138,82 @@ final class SubtaskRepositoryTests: XCTestCase {
         XCTAssertEqual(repository.task(withID: parent.id)?.title, "准备发布")
         XCTAssertNil(repository.task(withID: UUID()))
     }
+
+    func testDeleteAndRestoreReturnsToOriginalPosition() throws {
+        let items = add("a", "b", "c")
+        repository.toggleSubtask(items[1])
+        let snapshot = try XCTUnwrap(repository.deleteSubtask(items[1]))
+        XCTAssertEqual(titles(), ["a", "c"])
+        XCTAssertTrue(repository.restoreSubtask(snapshot))
+        XCTAssertEqual(titles(), ["a", "b", "c"])
+        XCTAssertEqual(repository.subtasks(of: parent.id)[1].isCompleted, true)
+    }
+
+    func testFailedDeleteKeepsSubtask() {
+        let items = add("a")
+        TaskRepository.simulatesSaveFailure = true
+        XCTAssertNil(repository.deleteSubtask(items[0]))
+        TaskRepository.simulatesSaveFailure = false
+        XCTAssertEqual(titles(), ["a"])
+    }
+
+    func testRestoreFailsWhenParentIsGone() throws {
+        let items = add("a")
+        let snapshot = try XCTUnwrap(repository.deleteSubtask(items[0]))
+        XCTAssertNotNil(repository.delete(parent))
+        XCTAssertFalse(repository.restoreSubtask(snapshot))
+        XCTAssertTrue(repository.allSubtasks().isEmpty)
+    }
+
+    func testDeletingParentRemovesSubtasksAndUndoRestoresThem() throws {
+        let items = add("a", "b", "c")
+        repository.toggleSubtask(items[2])
+        let parentID = parent.id
+        let snapshot = try XCTUnwrap(repository.delete(parent))
+        XCTAssertTrue(repository.allSubtasks().isEmpty)
+
+        XCTAssertTrue(repository.restore(snapshot))
+        let restored = repository.subtasks(of: parentID)
+        XCTAssertEqual(restored.map(\.title), ["a", "b", "c"])
+        XCTAssertEqual(restored.map(\.isCompleted), [false, false, true])
+    }
+
+    func testPromotingIncompleteSubtaskAppendsToParentQuadrant() throws {
+        repository.addTask(title: "已有", quadrant: .importantUrgent, to: repository.allTasks())
+        let items = add("a", "b")
+        let result = try XCTUnwrap(repository.promoteSubtask(items[0]))
+
+        XCTAssertEqual(titles(), ["b"])
+        XCTAssertEqual(result.task.title, "a")
+        XCTAssertEqual(result.task.quadrant, .importantUrgent)
+        XCTAssertFalse(result.task.isCompleted)
+        XCTAssertEqual(repository.activeTasks(in: .importantUrgent, from: repository.allTasks()).map(\.title), ["准备发布", "已有", "a"])
+    }
+
+    func testPromotingCompletedSubtaskKeepsCompletion() throws {
+        let items = add("a")
+        repository.toggleSubtask(items[0])
+        let completedAt = items[0].completedAt
+        let result = try XCTUnwrap(repository.promoteSubtask(items[0]))
+        XCTAssertTrue(result.task.isCompleted)
+        XCTAssertEqual(result.task.completedAt, completedAt)
+        XCTAssertEqual(repository.completedTasks(in: .importantUrgent, from: repository.allTasks()).map(\.title), ["a"])
+    }
+
+    func testUndoPromotionPutsSubtaskBackAndRemovesTask() throws {
+        let items = add("a", "b", "c")
+        let result = try XCTUnwrap(repository.promoteSubtask(items[1]))
+        XCTAssertTrue(repository.undoPromotion(result.snapshot, promotedTaskID: result.task.id))
+        XCTAssertEqual(titles(), ["a", "b", "c"])
+        XCTAssertEqual(repository.allTasks().map(\.title), ["准备发布"])
+    }
+
+    func testFailedPromotionLeavesEverythingInPlace() {
+        let items = add("a", "b")
+        TaskRepository.simulatesSaveFailure = true
+        XCTAssertNil(repository.promoteSubtask(items[0]))
+        TaskRepository.simulatesSaveFailure = false
+        XCTAssertEqual(titles(), ["a", "b"])
+        XCTAssertEqual(repository.allTasks().map(\.title), ["准备发布"])
+    }
 }

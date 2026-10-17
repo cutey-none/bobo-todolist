@@ -180,9 +180,11 @@ struct TaskRepository {
         }
     }
 
-    /// 删除成功返回可撤销的快照；保存失败时事项保留，返回 nil。
+    /// 删除事项及其子待办；成功返回可撤销的快照，保存失败时全部保留并返回 nil。
     func delete(_ task: TaskItem) -> TaskSnapshot? {
-        let snapshot = TaskSnapshot(task)
+        let children = subtasks(of: task.id)
+        let snapshot = TaskSnapshot(task, subtasks: children.enumerated().map { SubtaskSnapshot($1, index: $0) })
+        for child in children { context.delete(child) }
         context.delete(task)
         return save() ? snapshot : nil
     }
@@ -190,6 +192,7 @@ struct TaskRepository {
     @discardableResult
     func restore(_ snapshot: TaskSnapshot) -> Bool {
         context.insert(snapshot.makeTask())
+        for child in snapshot.subtasks { context.insert(child.makeSubtask(sortOrder: child.index)) }
         return save()
     }
 
