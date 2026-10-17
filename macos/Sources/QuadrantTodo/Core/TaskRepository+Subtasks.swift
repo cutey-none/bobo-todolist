@@ -125,15 +125,23 @@ extension TaskRepository {
         return save() ? (promoted, snapshot) : nil
     }
 
-    /// 撤销提升：删除新建的待办（若仍存在），把子待办放回原位置；父待办已不存在时返回 false。
+    /// 撤销提升：删除新建的待办（若仍存在，连同期间给它加的子待办与描述图片），把子待办放回原位置；
+    /// 父待办已不存在时返回 false。
     @discardableResult
     func undoPromotion(_ snapshot: SubtaskSnapshot, promotedTaskID: UUID) -> Bool {
         guard task(withID: snapshot.parentID) != nil else { return false }
         let siblings = subtasks(of: snapshot.parentID)
-        return persistSubtasks(siblings) {
-            if let promoted = task(withID: promotedTaskID) { context.delete(promoted) }
+        let promoted = task(withID: promotedTaskID)
+        let note = promoted?.note
+        let restored = persistSubtasks(siblings) {
+            if let promoted {
+                for child in subtasks(of: promoted.id) { context.delete(child) }
+                context.delete(promoted)
+            }
             insert(snapshot, among: siblings)
         }
+        if restored, let note { removeUnusedAttachments(MarkdownDocument.imageSources(in: note)) }
+        return restored
     }
 
     private func index(of item: SubtaskItem) -> Int {

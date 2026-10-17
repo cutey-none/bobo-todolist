@@ -208,6 +208,17 @@ final class SubtaskRepositoryTests: XCTestCase {
         XCTAssertEqual(repository.allTasks().map(\.title), ["准备发布"])
     }
 
+    /// 撤销提升会删除新建的待办；期间给它加的子待办不能留成孤儿。
+    func testUndoPromotionAlsoRemovesSubtasksAddedToPromotedTask() throws {
+        let items = add("a")
+        let result = try XCTUnwrap(repository.promoteSubtask(items[0]))
+        XCTAssertNotNil(repository.addSubtask(title: "x", to: result.task.id))
+
+        XCTAssertTrue(repository.undoPromotion(result.snapshot, promotedTaskID: result.task.id))
+        XCTAssertEqual(titles(), ["a"])
+        XCTAssertEqual(repository.allSubtasks().map(\.title), ["a"], "被删除待办的子待办不应残留")
+    }
+
     func testFailedPromotionLeavesEverythingInPlace() {
         let items = add("a", "b")
         TaskRepository.simulatesSaveFailure = true
