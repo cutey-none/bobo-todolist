@@ -381,3 +381,19 @@ QT_RENDER_SCREENSHOT="$PWD/docs/verify/82-long-description-lazy-rendering.png" \
 | [88-menu-check-opens-settings-rate-limited.png](88-menu-check-opens-settings-rate-limited.png) | 从菜单栏「检查更新…」打开设置窗口；在 API 返回 403 的情况下仍显示「已是最新版本」。 |
 
 尚未验证：有新版本时通过网页后备完成一次真实的下载与替换（需要发布 0.0.3）。
+
+## 拖拽把手：排序与跨象限（2026-10-17）
+
+在 macOS 26.5.2 上，用独立数据目录（`QT_DATA_DIR`）和单独 bundle id 的测试副本运行，不触碰真实待办与设置；用系统级 CGEvent 真实鼠标事件按住行首把手拖动。
+
+- **此前「SwiftUI 拖放会话无法用合成事件驱动」的结论不成立**：同样的事件在对照小程序（普通窗口与同配置的无边框非激活 NSPanel）中都能完成拖放。
+- **根因**：macOS 26 上对面板内容直接使用 `glassEffect` 后，内部所有 `dropDestination` 都收不到拖放（拖拽源正常，拖到其他应用可收到事项 ID；根视图能收到，玻璃容器内一律收不到），点击不受影响。改为把玻璃画在背景层后恢复。
+
+| 截图 | 证明 |
+| --- | --- |
+| [89-drag-before-fix-no-move.png](89-drag-before-fix-no-move.png) | 修复前：拖「修复发布阻塞问题」的把手到「重要不紧急」后松手，事项仍留在原象限。 |
+| [90-drag-grip-to-other-quadrant.png](90-drag-grip-to-other-quadrant.png) | 修复后：同样的拖动把事项移入「重要不紧急」，原象限计数变为 0；面板玻璃外观不变。 |
+| [91-drag-grip-reorder-within-quadrant.png](91-drag-grip-reorder-within-quadrant.png) | 同象限内把第二项拖到第一项上，顺序变为「制定下季度目标、修复发布阻塞问题」。 |
+| [92-drag-order-survives-relaunch.png](92-drag-order-survives-relaunch.png) | 重启后象限归属与顺序保持。 |
+
+另确认编辑浮层（同样使用玻璃）显示正常。未验证：拖拽过程中的插入位置提示样式、收起状态下拖动。
