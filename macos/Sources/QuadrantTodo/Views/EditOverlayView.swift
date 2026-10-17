@@ -148,6 +148,8 @@ struct EditOverlayView: View {
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 12)
 
             Divider().overlay(Theme.hairline)
+            subtaskArea
+            Divider().overlay(Theme.hairline)
             descriptionArea.frame(minHeight: 160, maxHeight: .infinity)
             Divider().overlay(Theme.hairline)
             toolbar.padding(.horizontal, 12).frame(height: 40)
@@ -155,6 +157,28 @@ struct EditOverlayView: View {
         .background(RoundedRectangle(cornerRadius: 16).fill(Color(nsColor: .controlBackgroundColor)))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.hairline, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// 子待办与主面板展开区共用同一组件，修改立即保存；保存 / 放弃只作用于标题与描述。
+    private var subtaskArea: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("子待办")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.secondaryText)
+                Spacer()
+                Text("子待办修改会立即保存")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.tertiaryText)
+            }
+            ScrollView(.vertical) {
+                SubtaskListView(parentID: task.id, state: state)
+            }
+            .frame(maxHeight: 180)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     private var quadrantMenu: some View {
