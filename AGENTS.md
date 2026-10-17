@@ -14,7 +14,7 @@
 
 - A todo item opens as one detail page: the item title is the page-level heading and the content beneath it is an editable description.
 - The description is stored as Markdown and may contain small headings, body text, ordinary bullet lists, and images (local attachment files referenced from the Markdown).
-- In the main panel, a single click on a todo's title (or its pencil) opens the edit popup; a single click on the row's blank area or chevron expands it in place to view the rendered description. Do not rely on double clicks.
+- In the main panel, a single click on a todo's title (or its pencil) opens the edit popup; a single click on the row's blank area or chevron expands it in place to view its subtasks and rendered description. Do not rely on double clicks.
 - The interaction spec lives in `docs/prd/quadrant-todo-ui-prd.md`; follow it for layout, inline per-quadrant input, completion, undo, and edit-popup save rules.
-- Do not turn description content into subtasks, checklists, progress entries, or an activity timeline unless the user explicitly changes the product direction.
+- Todos may have one level of subtasks (title + completion only, see PRD §15). Description Markdown, including `- [ ]` checklists, stays plain text and never becomes subtasks, progress entries, or an activity timeline.
 - Description content must persist locally, survive relaunch, and preserve compatible legacy notes/progress data during migration.
