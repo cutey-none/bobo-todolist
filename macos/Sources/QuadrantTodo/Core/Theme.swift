@@ -5,6 +5,7 @@ enum Theme {
     static let blue = Color(hex: 0x3B82F6)
     static let orange = Color(hex: 0xF59E0B)
     static let gray = Color(hex: 0x6B7280)
+    static let green = Color(hex: 0x30A46C)
 
     static let accent = Color(hex: 0x2F6FEB)
     static let secondaryText = Color.primary.opacity(0.55)

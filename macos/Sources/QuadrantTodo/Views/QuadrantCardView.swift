@@ -8,6 +8,7 @@ struct QuadrantCardView: View {
     let activeTasks: [TaskItem]
     let completedTasks: [TaskItem]
     let describedTaskIDs: Set<UUID>
+    var subtaskProgress: [UUID: SubtaskProgress] = [:]
     let expandedTaskID: UUID?
     let focusedTaskID: UUID?
     let pendingTaskIDs: Set<UUID>
@@ -38,6 +39,7 @@ struct QuadrantCardView: View {
                     TaskRowView(
                         task: task,
                         hasDescription: describedTaskIDs.contains(task.id),
+                        subtaskProgress: subtaskProgress[task.id],
                         isExpanded: expandedTaskID == task.id,
                         isPending: pendingTaskIDs.contains(task.id),
                         isFocused: focusedTaskID == task.id,
@@ -140,6 +142,7 @@ struct QuadrantCardView: View {
                     TaskRowView(
                         task: task,
                         hasDescription: describedTaskIDs.contains(task.id),
+                        subtaskProgress: subtaskProgress[task.id],
                         isExpanded: expandedTaskID == task.id,
                         isPending: pendingTaskIDs.contains(task.id),
                         isFocused: focusedTaskID == task.id,

@@ -3,11 +3,12 @@ import SwiftUI
 /// 任务行（UI PRD 5）：完成圆圈、标题、行空白 / 展开箭头各有独立且互不抢占的点击区域。
 /// - 圆圈只切换完成状态；
 /// - 标题及紧贴的小铅笔打开编辑浮层；
-/// - 行空白与行尾箭头展开 / 收起 Markdown 描述；
+/// - 行空白与行尾箭头展开 / 收起子待办与 Markdown 描述；
 /// - 拖拽只能从行空白发起，标题、圆圈、箭头与描述正文都不发起拖拽。
 struct TaskRowView: View {
     let task: TaskItem
     var hasDescription = false
+    var subtaskProgress: SubtaskProgress? = nil
     var isExpanded = false
     var isPending = false
     let isFocused: Bool
@@ -25,6 +26,7 @@ struct TaskRowView: View {
     @State private var rowHovering = false
     @State private var titleFullWidth: CGFloat = 0
     @State private var titleShownWidth: CGFloat = 0
+    @Environment(\.appState) private var appState
 
     private var isTitleTruncated: Bool {
         TaskTitleTooltip.isTruncated(fullWidth: titleFullWidth, shownWidth: titleShownWidth)
@@ -65,6 +67,7 @@ struct TaskRowView: View {
             completionButton
             titleButton
             blankArea
+            progressPill
             expandButton
             deleteButton
         }
@@ -169,7 +172,7 @@ struct TaskRowView: View {
             .accessibilityHidden(true)
     }
 
-    /// 有描述的行常显箭头（也代替原来的描述图标）；没有描述时只在悬停或展开时出现，
+    /// 有描述或子待办的行常显箭头（也代替原来的描述图标）；否则只在悬停或展开时出现，
     /// 隐藏时仍可点击，与行空白的行为一致。
     private var expandButton: some View {
         Button(action: toggleExpand) {
@@ -178,7 +181,7 @@ struct TaskRowView: View {
                 .foregroundStyle(Theme.secondaryText)
                 .frame(width: 20, height: 32)
                 .contentShape(Rectangle())
-                .opacity(hasDescription || isExpanded || rowHovering || isFocused ? 1 : 0)
+                .opacity(hasDescription || subtaskProgress != nil || isExpanded || rowHovering || isFocused ? 1 : 0)
         }
         .buttonStyle(.plain)
         .help(isExpanded ? "收起描述" : "展开描述")
@@ -198,19 +201,45 @@ struct TaskRowView: View {
         .accessibilityLabel("删除：\(task.title)")
     }
 
+    @ViewBuilder private var progressPill: some View {
+        if let progress = subtaskProgress {
+            Text("\(progress.done)/\(progress.total)")
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(progress.isComplete ? Theme.green : Theme.secondaryText)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1.5)
+                .background(Capsule().fill(progress.isComplete ? Theme.green.opacity(0.14) : Color.primary.opacity(0.06)))
+                .fixedSize()
+                // 胶囊位于行空白中，点击与行空白一致：展开 / 收起。
+                .contentShape(Capsule())
+                .onTapGesture { toggleExpand() }
+                .help("子待办 \(progress.done)/\(progress.total) 已完成")
+                .accessibilityLabel("子待办 \(progress.done)/\(progress.total) 已完成")
+        }
+    }
+
     @ViewBuilder private var details: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 6) {
+            if let appState {
+                SubtaskListView(parentID: task.id, state: appState)
+                    .padding(.leading, 33)
+            }
             if hasDescription {
+                if subtaskProgress != nil {
+                    Divider().overlay(Theme.divider).padding(.leading, 57)
+                }
                 MarkdownView(markdown: task.note ?? "", fontSize: 12, imageMaxHeight: 140)
                     // 选中正文、点链接不会反向触发展开或编辑：这些手势只挂在标题与行空白上。
                     .textSelection(.enabled)
-            } else {
+                    .padding(.leading, 57)
+            } else if subtaskProgress == nil {
                 Text("暂无描述")
                     .font(.system(size: 11.5))
                     .foregroundStyle(Theme.secondaryText)
+                    .padding(.leading, 57)
             }
         }
-        .padding(.leading, 57)
         .padding(.trailing, 12)
         .padding(.bottom, 12)
         .transition(.opacity)

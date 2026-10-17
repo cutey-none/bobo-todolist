@@ -7,6 +7,7 @@ struct RootView: View {
     @ObservedObject var state: AppState
     @ObservedObject var settings: SettingsStore
     @Query private var allTasks: [TaskItem]
+    @Query private var allSubtasks: [SubtaskItem]
     private var describedTaskIDs: Set<UUID> {
         repository.describedTaskIDs(from: allTasks)
     }
@@ -56,6 +57,7 @@ struct RootView: View {
             TaskTitleTooltipOverlay(tooltip: tooltip)
         }
         .overlay { editOverlay }
+        .environment(\.appState, state)
         .onAppear(perform: installEventMonitor)
         .onDisappear { removeEventMonitor() }
     }
@@ -71,6 +73,7 @@ struct RootView: View {
             activeTasks: activeByQuadrant,
             completedTasks: completedByQuadrant,
             describedTaskIDs: describedTaskIDs,
+            subtaskProgress: TaskRepository.progress(of: allSubtasks),
             onToggle: { state.toggleCompletion($0) },
             onEdit: { task in
                 state.controller?.focusPanelIfNeeded()

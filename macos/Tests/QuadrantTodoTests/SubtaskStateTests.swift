@@ -110,3 +110,12 @@ final class SubtaskStateTests: XCTestCase {
         XCTAssertEqual(state.notice?.isError, true)
     }
 }
+
+final class SubtaskDragTests: XCTestCase {
+    func testPayloadRoundTripsAndRejectsTaskIDs() {
+        let id = UUID()
+        XCTAssertEqual(SubtaskDrag.id(from: SubtaskDrag.payload(id)), id)
+        XCTAssertNil(SubtaskDrag.id(from: id.uuidString), "普通事项的拖拽载荷不能被当作子待办")
+        XCTAssertNil(SubtaskDrag.id(from: "subtask:not-a-uuid"))
+    }
+}
