@@ -397,3 +397,14 @@ QT_RENDER_SCREENSHOT="$PWD/docs/verify/82-long-description-lazy-rendering.png" \
 | [92-drag-order-survives-relaunch.png](92-drag-order-survives-relaunch.png) | 重启后象限归属与顺序保持。 |
 
 另确认编辑浮层（同样使用玻璃）显示正常。未验证：拖拽过程中的插入位置提示样式、收起状态下拖动。
+
+## 标题悬停提示：仅截断时显示、宽度贴合（2026-10-17）
+
+同样使用隔离的测试副本（独立数据目录与 bundle id），用真实鼠标移动悬停。
+
+| 截图 | 证明 |
+| --- | --- |
+| [93-hover-short-title-no-tooltip.png](93-hover-short-title-no-tooltip.png) | 悬停未截断的「预订会议室」：只有浅底和铅笔，不再弹出完整标题提示。 |
+| [94-hover-truncated-title-fitted-tooltip.png](94-hover-truncated-title-fitted-tooltip.png) | 悬停被截断的长标题：提示框显示完整标题，宽度刚好包住文字，不再固定 440pt 留白。 |
+
+未验证：超过 440pt 需要换行的超长标题、键盘聚焦时的提示。
