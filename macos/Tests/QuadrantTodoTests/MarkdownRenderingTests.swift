@@ -54,7 +54,8 @@ final class MarkdownRenderingTests: XCTestCase {
             host.cacheDisplay(in: host.bounds, to: rep)
             let elapsed = CFAbsoluteTimeGetCurrent() - start
             print("Description expansion \(attempt): \(elapsed) seconds")
-            XCTAssertLessThan(elapsed, 0.2, "Long description blocks the main thread when expanded")
+            // 首次渲染包含 SwiftUI 冷启动开销，放宽预算；第二次才严格检查展开本身。
+            XCTAssertLessThan(elapsed, attempt == 0 ? 0.5 : 0.2, "Long description blocks the main thread when expanded")
             if attempt == 1, let output = ProcessInfo.processInfo.environment["QT_RENDER_SCREENSHOT"] {
                 let window = NSWindow(contentRect: host.bounds, styleMask: [.titled], backing: .buffered, defer: false)
                 window.contentView = host
