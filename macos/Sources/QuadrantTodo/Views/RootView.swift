@@ -91,7 +91,7 @@ struct RootView: View {
     private var undoToast: some View {
         if let undo = state.undo, state.isExpanded {
             HStack(spacing: 8) {
-                Image(systemName: "trash")
+                Image(systemName: undo.symbol)
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.secondaryText)
                 Text(undo.message)

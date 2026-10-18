@@ -21,6 +21,12 @@ struct UndoEntry: Identifiable {
         }
     }
 
+    /// 撤销提示的图标：删除用垃圾桶，提升用「移出」箭头。
+    var symbol: String {
+        if case .promotion = kind { return "arrow.up.forward.square" }
+        return "trash"
+    }
+
     /// 被删除事项的描述，用于撤销期结束后清理附件。
     var note: String? {
         if case .task(let snapshot) = kind { return snapshot.note }

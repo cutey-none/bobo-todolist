@@ -63,6 +63,16 @@ final class SubtaskStateTests: XCTestCase {
         XCTAssertEqual(state.repository.allTasks().map(\.title), ["准备发布"])
     }
 
+    func testUndoToastIconMatchesKind() throws {
+        XCTAssertNil(state.addSubtask("a", to: parent.id))
+        XCTAssertNil(state.addSubtask("b", to: parent.id))
+        let items = state.repository.subtasks(of: parent.id)
+        state.deleteSubtask(items[0])
+        XCTAssertEqual(state.undo?.symbol, "trash")
+        state.promoteSubtask(items[1])
+        XCTAssertEqual(state.undo?.symbol, "arrow.up.forward.square")
+    }
+
     func testDeletingParentUndoRestoresSubtasks() {
         XCTAssertNil(state.addSubtask("a", to: parent.id))
         let parentID = parent.id
