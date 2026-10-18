@@ -47,7 +47,6 @@ struct TaskRowView: View {
         } isTargeted: { targeted in
             onTargeted(targeted)
         }
-        .contextMenu { menu }
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: isExpanded ? "收起描述" : "展开描述") { onToggleExpand() }
         .accessibilityAction(named: "编辑") { onEdit() }
@@ -73,6 +72,8 @@ struct TaskRowView: View {
         }
         .frame(minHeight: 40)
         .onHover { rowHovering = $0 }
+        // 右键菜单只挂在行头：展开区（子待办、描述）里的右键不属于父事项。
+        .contextMenu { menu }
     }
 
     private var completionButton: some View {
