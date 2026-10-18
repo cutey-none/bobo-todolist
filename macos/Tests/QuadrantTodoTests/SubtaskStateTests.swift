@@ -1,3 +1,4 @@
+import UniformTypeIdentifiers
 import XCTest
 @testable import QuadrantTodo
 
@@ -128,10 +129,15 @@ final class SubtaskStateTests: XCTestCase {
 }
 
 final class SubtaskDragTests: XCTestCase {
-    func testPayloadRoundTripsAndRejectsTaskIDs() {
-        let id = UUID()
-        XCTAssertEqual(SubtaskDrag.id(from: SubtaskDrag.payload(id)), id)
-        XCTAssertNil(SubtaskDrag.id(from: id.uuidString), "普通事项的拖拽载荷不能被当作子待办")
-        XCTAssertNil(SubtaskDrag.id(from: "subtask:not-a-uuid"))
+    /// 子待办拖拽使用独立类型：输入框、事项行和象限（只收文本 / 字符串）都不会接收它。
+    func testDragTypeIsNotText() {
+        XCTAssertFalse(UTType.quadrantSubtask.conforms(to: .text))
+        XCTAssertFalse(UTType.quadrantSubtask.conforms(to: .plainText))
+    }
+
+    func testDragPayloadRoundTrips() throws {
+        let item = SubtaskDragItem(id: UUID())
+        let data = try JSONEncoder().encode(item)
+        XCTAssertEqual(try JSONDecoder().decode(SubtaskDragItem.self, from: data), item)
     }
 }

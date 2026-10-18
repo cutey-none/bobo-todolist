@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 private struct AppStateKey: EnvironmentKey {
     static let defaultValue: AppState? = nil
@@ -13,15 +14,17 @@ extension EnvironmentValues {
     }
 }
 
-/// 子待办拖拽载荷：带前缀，事项的拖放目标解析不出 UUID，会忽略它。
-enum SubtaskDrag {
-    private static let prefix = "subtask:"
+extension UTType {
+    /// 子待办拖拽的独立类型（Info.plist 中声明）：不属于文本，输入框、事项行与象限都不会接收。
+    static let quadrantSubtask = UTType(exportedAs: "com.cutey.quadranttodo.subtask")
+}
 
-    static func payload(_ id: UUID) -> String { prefix + id.uuidString }
+/// 子待办拖拽载荷。
+struct SubtaskDragItem: Codable, Equatable, Transferable {
+    let id: UUID
 
-    static func id(from raw: String) -> UUID? {
-        guard raw.hasPrefix(prefix) else { return nil }
-        return UUID(uuidString: String(raw.dropFirst(prefix.count)))
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .quadrantSubtask)
     }
 }
 
@@ -73,7 +76,7 @@ struct SubtaskListView: View {
                     onDelete: { withAnimation(.easeOut(duration: 0.15)) { state.deleteSubtask(item) } },
                     onPromote: { withAnimation(.easeOut(duration: 0.18)) { state.promoteSubtask(item) } },
                     onMove: { delta in withAnimation(.easeOut(duration: 0.15)) { state.moveSubtask(item, by: delta) } },
-                    onDrop: { raw in drop(raw, before: item.id) },
+                    onDrop: { dragged in drop(dragged, before: item.id) },
                     onTargeted: { targetedID = $0 ? item.id : (targetedID == item.id ? nil : targetedID) }
                 )
             }
@@ -122,8 +125,8 @@ struct SubtaskListView: View {
                     .accessibilityLabel("添加子待办")
             }
             .frame(minHeight: 26)
-            .dropDestination(for: String.self) { raws, _ in
-                raws.first.map { drop($0, before: nil) } ?? false
+            .dropDestination(for: SubtaskDragItem.self) { dragged, _ in
+                dragged.first.map { drop($0, before: nil) } ?? false
             }
             if let draftProblem {
                 Text(draftProblem)
@@ -180,10 +183,11 @@ struct SubtaskListView: View {
         }
     }
 
-    /// 只接受同一父待办的子待办；事项或其他父待办的子待办一律拒绝。
-    private func drop(_ raw: String, before targetID: UUID?) -> Bool {
+    /// 只接受同一父待办的子待办；其他父待办的子待办一律拒绝。
+    private func drop(_ dragged: SubtaskDragItem, before targetID: UUID?) -> Bool {
         targetedID = nil
-        guard let id = SubtaskDrag.id(from: raw), let item = items.first(where: { $0.id == id }) else { return false }
+        let id = dragged.id
+        guard let item = items.first(where: { $0.id == id }) else { return false }
         guard id != targetID else { return true }
         withAnimation(.easeOut(duration: 0.15)) { state.moveSubtask(item, before: targetID) }
         return true
@@ -205,7 +209,7 @@ private struct SubtaskRowView: View {
     let onDelete: () -> Void
     let onPromote: () -> Void
     let onMove: (Int) -> Void
-    let onDrop: (String) -> Bool
+    let onDrop: (SubtaskDragItem) -> Bool
     let onTargeted: (Bool) -> Void
 
     @State private var hovering = false
@@ -232,8 +236,8 @@ private struct SubtaskRowView: View {
         .overlay(alignment: .top) {
             Rectangle().fill(Theme.accent).frame(height: 1.5).opacity(isTargeted ? 1 : 0)
         }
-        .dropDestination(for: String.self) { raws, _ in
-            raws.first.map(onDrop) ?? false
+        .dropDestination(for: SubtaskDragItem.self) { dragged, _ in
+            dragged.first.map(onDrop) ?? false
         } isTargeted: { onTargeted($0) }
         .contextMenu {
             Button("上移") { onMove(-1) }
@@ -256,7 +260,7 @@ private struct SubtaskRowView: View {
             .frame(width: 10, height: 24)
             .contentShape(Rectangle())
             .opacity(hovering ? 1 : 0)
-            .draggable(SubtaskDrag.payload(item.id)) {
+            .draggable(SubtaskDragItem(id: item.id)) {
                 Text(item.title).font(.system(size: 12)).padding(.horizontal, 8).padding(.vertical, 4)
             }
             .help("拖动以调整顺序")
