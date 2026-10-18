@@ -253,8 +253,9 @@ struct RootView: View {
                 state.toggleCompletion(task)
                 return nil
             case 51: // Delete
-                if flags.contains(.command), let task = state.focusedTask(allTasks) {
-                    withAnimation(.easeOut(duration: 0.18)) { state.delete(task) }
+                // 正在输入（含子待办输入框）时 ⌘⌫ 只删除文字，不能删掉之前选中的事项。
+                if flags.contains(.command), !editingText, let task = state.focusedTask(allTasks) {
+                    _ = withAnimation(.easeOut(duration: 0.18)) { state.delete(task) }
                     return nil
                 }
                 return editingText ? event : nil
