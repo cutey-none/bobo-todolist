@@ -32,10 +32,10 @@ extension TaskRepository {
         return (try? context.fetch(descriptor))?.first
     }
 
-    /// 标题不合法或保存失败时返回 nil，且不留下任何子待办。
+    /// 标题不合法、父待办已不存在或保存失败时返回 nil，且不留下任何子待办。
     @discardableResult
     func addSubtask(title: String, to parentID: UUID) -> SubtaskItem? {
-        guard case .success(let valid) = TaskTitle.validate(title) else { return nil }
+        guard case .success(let valid) = TaskTitle.validate(title), task(withID: parentID) != nil else { return nil }
         let next = (subtasks(of: parentID).map(\.sortOrder).max() ?? -1) + 1
         let item = SubtaskItem(parentID: parentID, title: valid, sortOrder: next)
         context.insert(item)

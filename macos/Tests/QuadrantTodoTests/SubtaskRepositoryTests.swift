@@ -42,6 +42,11 @@ final class SubtaskRepositoryTests: XCTestCase {
         XCTAssertEqual(titles(), ["写 更新说明"])
     }
 
+    func testAddingToMissingParentCreatesNothing() {
+        XCTAssertNil(repository.addSubtask(title: "a", to: UUID()))
+        XCTAssertTrue(repository.allSubtasks().isEmpty)
+    }
+
     func testFailedAddLeavesNoSubtask() {
         TaskRepository.simulatesSaveFailure = true
         XCTAssertNil(repository.addSubtask(title: "a", to: parent.id))
