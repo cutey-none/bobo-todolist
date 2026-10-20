@@ -10,7 +10,7 @@ macOS 原生贴边待办工具，使用 SwiftUI + SwiftData，任务与 Markdown
 
 需要 **macOS 14 Sonoma 或更新版本**。DMG 安装不需要 Xcode 或其他开发工具。
 
-1. 从 [GitHub Releases](https://github.com/cutey-none/bobo-todolist/releases/latest) 下载安装包。**v0.0.1 提供 Apple Silicon（M 系列）的 [DMG 直接下载](https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.1/QuadrantTodo_0.0.1_arm64.dmg)** 和 [SHA-256 校验文件](https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.1/QuadrantTodo_0.0.1_arm64.dmg.sha256)，无需自行编译。可在苹果菜单 →「关于本机」确认芯片；本次未发布 Intel 安装包，Intel 用户仍可按下面的源码步骤本机构建。
+1. 从 [GitHub Releases](https://github.com/cutey-none/bobo-todolist/releases/latest) 下载安装包。**v0.0.3 提供 Apple Silicon（M 系列）的 [DMG 直接下载](https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.3/QuadrantTodo_0.0.3_arm64.dmg)** 和 [SHA-256 校验文件](https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.3/QuadrantTodo_0.0.3_arm64.dmg.sha256)，无需自行编译。可在苹果菜单 →「关于本机」确认芯片；本次未发布 Intel 安装包，Intel 用户仍可按下面的源码步骤本机构建。
 2. 双击 DMG，将 **QuadrantTodo.app** 拖到同一窗口的 **Applications（应用程序）** 快捷方式，然后推出磁盘镜像。
 3. 从「应用程序」打开 QuadrantTodo。应用常驻菜单栏：点击顶部待办图标、按 `⌥Space`，或悬停屏幕贴边条展开面板。
 
@@ -37,7 +37,7 @@ cd bobo-todolist
 ./macos/package-dmg.sh    # 重建 release 并生成 DMG + SHA-256
 ```
 
-产物位于 `macos/build/`：`QuadrantTodo.app`、`QuadrantTodo_0.0.1_arm64.dmg`（Intel 为 `x86_64`）及对应 `.dmg.sha256`。默认编译当前电脑的架构，安装包不是 Universal 通用包。双击生成的 DMG 即可按上面的步骤安装。
+产物位于 `macos/build/`：`QuadrantTodo.app`、`QuadrantTodo_0.0.3_arm64.dmg`（Intel 为 `x86_64`）及对应 `.dmg.sha256`。默认编译当前电脑的架构，安装包不是 Universal 通用包。双击生成的 DMG 即可按上面的步骤安装。
 
 ## 已实现的功能
 

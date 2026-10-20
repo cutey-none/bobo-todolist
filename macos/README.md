@@ -54,7 +54,7 @@ open build/QuadrantTodo.app
 
 ### 安装到「应用程序」
 
-在 [GitHub Releases](https://github.com/cutey-none/bobo-todolist/releases/latest) 获取预编译安装包，无需 Xcode。v0.0.1 提供 [Apple Silicon DMG](https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.1/QuadrantTodo_0.0.1_arm64.dmg) 和 [SHA-256 校验文件](https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.1/QuadrantTodo_0.0.1_arm64.dmg.sha256)；本次未发布 Intel 二进制包。
+在 [GitHub Releases](https://github.com/cutey-none/bobo-todolist/releases/latest) 获取预编译安装包，无需 Xcode。v0.0.3 提供 [Apple Silicon DMG](https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.3/QuadrantTodo_0.0.3_arm64.dmg) 和 [SHA-256 校验文件](https://github.com/cutey-none/bobo-todolist/releases/download/v0.0.3/QuadrantTodo_0.0.3_arm64.dmg.sha256)；本次未发布 Intel 二进制包。
 
 双击匹配本机架构的 DMG，把 `QuadrantTodo.app` 拖到镜像里的 `Applications` 快捷方式，等待复制完成后推出镜像，再从「应用程序」打开。无需终端复制或 Xcode。替换旧版本前，先保存编辑内容并通过菜单栏退出；Finder 询问时选择「替换」，不要合并应用包。
 
@@ -72,14 +72,14 @@ open build/QuadrantTodo.app
 
 ```text
 macos/build/QuadrantTodo.app
-macos/build/QuadrantTodo_0.0.1_arm64.dmg
-macos/build/QuadrantTodo_0.0.1_arm64.dmg.sha256
+macos/build/QuadrantTodo_0.0.3_arm64.dmg
+macos/build/QuadrantTodo_0.0.3_arm64.dmg.sha256
 ```
 
 Intel 本机构建的文件名是 `x86_64`。版本从 `Resources/Info.plist` 读取，默认单架构，不是 Universal 包。`hdiutil verify` 成功后才替换已有 DMG。在安装包所在目录校验下载完整性（文件名按实际版本和架构修改）：
 
 ```bash
-shasum -a 256 -c QuadrantTodo_0.0.1_arm64.dmg.sha256
+shasum -a 256 -c QuadrantTodo_0.0.3_arm64.dmg.sha256
 ```
 
 发布时一并提供 DMG 与 `.sha256` 文件。维护者在干净且与远端同步的 `main` 上执行一条命令即可发版：
